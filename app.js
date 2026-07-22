@@ -548,11 +548,10 @@ function syncFilterDependencies(source) {
 
 // Render dynamic breakdown table
 function renderBreakdownTable() {
-  // Get active filter values
   const selectedOwners = Array.from(document.querySelectorAll('#owner-filters input:checked')).map(cb => cb.value);
   const selectedCategories = Array.from(document.querySelectorAll('#category-filters input:checked')).map(cb => cb.value);
 
-  // Set Table Header Dates
+  // Set Table Header Dates + Growth Headers
   const headerRow = document.getElementById('table-header-row');
   const dateHeadersHTML = availableDates.map(d => {
     const parts = d.split('-');
@@ -566,9 +565,9 @@ function renderBreakdownTable() {
     <th>Type</th>
     ${dateHeadersHTML}
     <th>Avg Growth</th>
+    <th>Total Growth</th>
   `;
 
-  // Filter asset classes by Owner and Category (since Asset Type auto-syncs Categories)
   const filteredAssetClasses = assetClasses.filter(ac => {
     const ownerMatch = selectedOwners.includes(ac.owner);
     const categoryMatch = selectedCategories.includes(ac.name);
@@ -579,6 +578,10 @@ function renderBreakdownTable() {
   tbody.innerHTML = '';
 
   let dateTotals = new Array(availableDates.length).fill(0);
+  
+  // Track global baseline (01-25) and latest totals across all filtered rows
+  let baselineTotal = 0;
+  let latestTotal = 0;
 
   filteredAssetClasses.forEach(ac => {
     let rowValues = [];
@@ -587,15 +590,13 @@ function renderBreakdownTable() {
     availableDates.forEach((date, idx) => {
       const match = assetHistoryData.find(h => h.asset_class_id === ac.id && h.snapshot_date === date);
       let rawVal = match ? parseFloat(match.value) || 0 : 0;
-      
-      // Represent liabilities as negative
       let displayVal = (ac.is_liability || ac.name.includes('Mortgage')) ? -Math.abs(rawVal) : rawVal;
       
       rowValues.push(displayVal);
       dateTotals[idx] += displayVal;
     });
 
-    // Option B: Mean Monthly Growth % across consecutive entries
+    // 1. Avg Growth (Option B)
     for (let i = 1; i < rowValues.length; i++) {
       const prev = rowValues[i - 1];
       const curr = rowValues[i];
@@ -603,14 +604,27 @@ function renderBreakdownTable() {
         stepGrowths.push((curr - prev) / Math.abs(prev));
       }
     }
+    let avgGrowthPct = stepGrowths.length > 0 ? (stepGrowths.reduce((a, b) => a + b, 0) / stepGrowths.length) * 100 : 0;
+    const avgGrowthClass = avgGrowthPct > 0 ? 'text-positive' : (avgGrowthPct < 0 ? 'text-negative' : '');
+    const avgGrowthFormatted = avgGrowthPct === 0 ? '0.0%' : `${avgGrowthPct > 0 ? '+' : ''}${avgGrowthPct.toFixed(1)}%`;
 
-    let avgGrowthPct = 0;
-    if (stepGrowths.length > 0) {
-      avgGrowthPct = (stepGrowths.reduce((a, b) => a + b, 0) / stepGrowths.length) * 100;
+    // 2. Total Growth (Baseline 01-25 vs Latest)
+    let totalGrowthHTML = 'N/A';
+    if (!ac.is_liability && !ac.name.includes('Mortgage')) {
+      // Find 01-25 baseline value
+      const baselineMatch = assetHistoryData.find(h => h.asset_class_id === ac.id && h.snapshot_date.startsWith('2025-01'));
+      const baselineVal = baselineMatch ? parseFloat(baselineMatch.value) || 0 : 0;
+      
+      // Get current latest value
+      const latestVal = rowValues[rowValues.length - 1] || 0;
+
+      if (baselineVal > 0) {
+        const totalGrowthPct = ((latestVal - baselineVal) / baselineVal) * 100;
+        const totalGrowthClass = totalGrowthPct > 0 ? 'text-positive' : (totalGrowthPct < 0 ? 'text-negative' : '');
+        const formattedTotal = `${totalGrowthPct > 0 ? '+' : ''}${totalGrowthPct.toFixed(1)}%`;
+        totalGrowthHTML = `<span class="${totalGrowthClass}">${formattedTotal}</span>`;
+      }
     }
-
-    const growthClass = avgGrowthPct > 0 ? 'text-positive' : (avgGrowthPct < 0 ? 'text-negative' : '');
-    const growthFormatted = avgGrowthPct === 0 ? '0.0%' : `${avgGrowthPct > 0 ? '+' : ''}${avgGrowthPct.toFixed(1)}%`;
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -618,12 +632,13 @@ function renderBreakdownTable() {
       <td>${ac.name}</td>
       <td>${ac.is_liquid ? 'Liquid' : 'Non-Liquid'}</td>
       ${rowValues.map(v => `<td>${formatCurrency(v)}</td>`).join('')}
-      <td class="${growthClass}">${growthFormatted}</td>
+      <td class="${avgGrowthClass}">${avgGrowthFormatted}</td>
+      <td>${totalGrowthHTML}</td>
     `;
     tbody.appendChild(tr);
   });
 
-  // Calculate overall average growth for totals
+  // Calculate overall Avg Growth for Totals row
   let totalGrowths = [];
   for (let i = 1; i < dateTotals.length; i++) {
     if (dateTotals[i - 1] !== 0) {
@@ -631,13 +646,27 @@ function renderBreakdownTable() {
     }
   }
   let totalAvgGrowthPct = totalGrowths.length > 0 ? (totalGrowths.reduce((a, b) => a + b, 0) / totalGrowths.length) * 100 : 0;
-  const totalGrowthClass = totalAvgGrowthPct > 0 ? 'text-positive' : (totalAvgGrowthPct < 0 ? 'text-negative' : '');
+  const totalAvgGrowthClass = totalAvgGrowthPct > 0 ? 'text-positive' : (totalAvgGrowthPct < 0 ? 'text-negative' : '');
+
+  // Calculate overall Total Growth (Baseline 01-25 vs Latest) for Totals row
+  let overallTotalGrowthHTML = 'N/A';
+  if (dateTotals.length > 0) {
+    const firstTotal = dateTotals[0]; // 01-25 total
+    const lastTotal = dateTotals[dateTotals.length - 1]; // latest total
+    
+    if (firstTotal !== 0) {
+      const overallTotalGrowthPct = ((lastTotal - firstTotal) / Math.abs(firstTotal)) * 100;
+      const overallTotalGrowthClass = overallTotalGrowthPct > 0 ? 'text-positive' : (overallTotalGrowthPct < 0 ? 'text-negative' : '');
+      overallTotalGrowthHTML = `<strong class="${overallTotalGrowthClass}">${overallTotalGrowthPct > 0 ? '+' : ''}${overallTotalGrowthPct.toFixed(1)}%</strong>`;
+    }
+  }
 
   // Render Footer Totals
   const tfootRow = document.getElementById('table-footer-row');
   tfootRow.innerHTML = `
     <td colspan="3"><strong>Total</strong></td>
     ${dateTotals.map(t => `<td><strong>${formatCurrency(t)}</strong></td>`).join('')}
-    <td id="avg-growth-total" class="${totalGrowthClass}"><strong>${totalAvgGrowthPct > 0 ? '+' : ''}${totalAvgGrowthPct.toFixed(1)}%</strong></td>
+    <td id="avg-growth-total" class="${totalAvgGrowthClass}"><strong>${totalAvgGrowthPct > 0 ? '+' : ''}${totalAvgGrowthPct.toFixed(1)}%</strong></td>
+    <td id="total-growth-total">${overallTotalGrowthHTML}</td>
   `;
 }

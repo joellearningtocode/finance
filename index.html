@@ -159,26 +159,28 @@
         <!-- Dynamic Breakdown Table -->
         <div class="table-wrapper">
           <table class="breakdown-table" id="breakdown-table">
-            <thead>
-              <tr id="table-header-row">
-                <th>Owner</th>
-                <th>Asset / Liability</th>
-                <th>Type</th>
-                <!-- Date headers dynamically inserted here -->
-                <th>Avg Growth</th>
-              </tr>
-            </thead>
-            <tbody id="table-body">
-              <!-- Rows dynamically populated -->
-            </tbody>
-            <tfoot>
+             <thead>
+               <tr id="table-header-row">
+                   <th>Owner</th>
+                 <th>Asset / Liability</th>
+                  <th>Type</th>
+                  <!-- Snapshot Date Headers -->
+                  <th>Avg Growth</th>
+                  <th>Total Growth</th> <!-- NEW COLUMN HEADER -->
+             </tr>
+         </thead>
+         <tbody id="table-body">
+          <!-- Dynamic Rows -->
+         </tbody>
+         <tfoot>
               <tr id="table-footer-row" class="totals-row">
-                <td colspan="3"><strong>Total</strong></td>
-                <!-- Calculated totals dynamically inserted here -->
-                <td id="avg-growth-total"><strong>-</strong></td>
-              </tr>
-            </tfoot>
-          </table>
+               <td colspan="3"><strong>Total</strong></td>
+               <!-- Date Totals -->
+               <td id="avg-growth-total"><strong>-</strong></td>
+               <td id="total-growth-total"><strong>-</strong></td> <!-- NEW FOOTER CELL -->
+            </tr>
+         </tfoot>
+        </table>
         </div>
       </section>
   </div>
