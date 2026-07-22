@@ -177,12 +177,15 @@ function calculateAndDisplayNetWorth() {
     const rawStr = input ? input.value : (currentValues[ac.id] || 0);
     const val = parseCurrencyNumber(rawStr);
 
-    if (ac.is_liability) {
-      liquid -= val;
+    // Mortgage deducts from Non-Liquid (Home Value), other liabilities deduct from Liquid
+    if (ac.name === 'Mortgage Balance') {
+      nonLiquid -= val;
+    } else if (ac.is_liability) {
+      liquid -= val; // Loans & Credit Cards
     } else if (ac.is_liquid) {
       liquid += val;
     } else {
-      nonLiquid += val;
+      nonLiquid += val; // Home Value, Pensions
     }
   });
 
