@@ -3,16 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Finance_App — Net Assets</title>
+  <title>Our Finances — Net Assets</title>
   <link rel="stylesheet" href="style.css">
+  <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+  
+  <!-- Chart.js v4 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  
+  <!-- Chart.js Datalabels Plugin v2 (Compatible with Chart.js v4) -->
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 </head>
 <body>
   <!-- Login Screen -->
   <div id="auth-container" class="auth-card">
-    <h2>Finance_App Login</h2>
+    <h2>Our Finances Login</h2>
     <p>Enter your credentials to access the dashboard.</p>
     <form id="login-form">
       <div class="input-group">
@@ -33,16 +38,19 @@
     <header>
       <div class="header-content">
         <div>
-          <h1>Finance_App</h1>
+          <h1>Our Finances</h1>
           <p>Page 1: Net Assets & Historical Growth</p>
         </div>
-        <button id="logout-btn" class="secondary-btn">Log Out</button>
+        <div class="header-right">
+          <span id="last-updated-badge" class="last-updated">Last Updated: Never</span>
+          <button id="logout-btn" class="secondary-btn">Log Out</button>
+        </div>
       </div>
     </header>
 
     <!-- Net Worth Summary Cards -->
     <section class="metrics-grid">
-      <div class="card">
+      <div class="card card-total">
         <h3>Total Net Worth</h3>
         <p id="total-net-worth">£0.00</p>
         <div class="growth-stats">
@@ -51,7 +59,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card card-liquid">
         <h3>Liquid Net Worth</h3>
         <p id="liquid-net-worth">£0.00</p>
         <div class="growth-stats">
@@ -60,7 +68,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card card-nonliquid">
         <h3>Non-Liquid Net Worth</h3>
         <p id="non-liquid-net-worth">£0.00</p>
         <div class="growth-stats">
@@ -98,13 +106,15 @@
         </div>
       </div>
 
-      <button id="save-values-btn">Save Monthly Entry</button>
+      <button id="save-values-btn">Save</button>
     </section>
 
     <!-- Historical Growth Chart -->
     <section class="chart-section">
       <h2>Historical Net Worth Growth</h2>
-      <canvas id="historyChart"></canvas>
+      <div class="chart-wrapper">
+        <canvas id="historyChart"></canvas>
+      </div>
     </section>
   </div>
 

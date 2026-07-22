@@ -2,6 +2,7 @@ const SUPABASE_URL = 'https://myckufuzjvgicpiphegj.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_lLMnno1aBCnV96JDZkT6ug_sZgolKaF';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// Register the datalabels plugin safely
 if (window.ChartDataLabels) {
   Chart.register(ChartDataLabels);
 }
@@ -11,7 +12,7 @@ let currentValues = {};
 let snapshots = [];
 let historyChart = null;
 
-// Currency Helpers
+// Helpers
 function formatCurrency(val) {
   const num = parseFloat(val) || 0;
   return new Intl.NumberFormat('en-GB', {
@@ -20,6 +21,13 @@ function formatCurrency(val) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(num);
+}
+
+// Compact £k notation for Chart labels
+function formatCompactCurrency(val) {
+  const num = parseFloat(val) || 0;
+  const inThousands = Math.round(num / 1000);
+  return `£${inThousands}k`;
 }
 
 function formatInputValue(val) {
@@ -36,23 +44,21 @@ function parseCurrencyNumber(str) {
   return parseFloat(str.toString().replace(/,/g, '')) || 0;
 }
 
-// 1. App Startup with Auth Check
+// App Initialization
 async function initApp() {
   const { data: { session } } = await supabaseClient.auth.getSession();
 
   if (session) {
-    showDashboard();
+    await showDashboard();
   } else {
     showLogin();
   }
 
-  // Listen for auth state changes
-  supabaseClient.auth.onAuthStateChange((event, session) => {
-    if (session) showDashboard();
+  supabaseClient.auth.onAuthStateChange(async (event, session) => {
+    if (session) await showDashboard();
     else showLogin();
   });
 
-  // Attach auth listeners
   document.getElementById('login-form')?.addEventListener('submit', handleLogin);
   document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
 }
@@ -68,19 +74,24 @@ async function showDashboard() {
 
   document.getElementById('snapshot-date').valueAsDate = new Date();
 
+  // 1. Fetch all data from database
   await fetchAssetClasses();
   await fetchLatestValues();
   await fetchSnapshots();
   
+  // 2. Render input forms FIRST so values populate into the DOM
   renderInputForms();
+
+  // 3. Calculate metrics and render chart using those populated values
   calculateAndDisplayNetWorth();
   renderHistoryChart();
   calculateGrowthPercentages();
+  updateLastUpdatedBadge();
 
   document.getElementById('save-values-btn')?.addEventListener('click', saveMonthlySnapshot);
 }
 
-// 2. Auth Handlers
+// Auth Handlers
 async function handleLogin(e) {
   e.preventDefault();
   const email = document.getElementById('email').value;
@@ -129,6 +140,20 @@ async function fetchSnapshots() {
   else snapshots = data || [];
 }
 
+function updateLastUpdatedBadge() {
+  const badge = document.getElementById('last-updated-badge');
+  if (!badge) return;
+
+  if (snapshots.length > 0) {
+    const latestDate = snapshots[snapshots.length - 1].snapshot_date;
+    const dateObj = new Date(latestDate);
+    const formattedDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    badge.innerText = `Last Updated: ${formattedDate}`;
+  } else {
+    badge.innerText = 'Last Updated: No Entries Yet';
+  }
+}
+
 function renderInputForms() {
   const joelContainer = document.getElementById('joel-inputs');
   const emmaContainer = document.getElementById('emma-inputs');
@@ -174,28 +199,45 @@ function calculateAndDisplayNetWorth() {
 
   assetClasses.forEach(ac => {
     const input = document.getElementById(`asset-${ac.id}`);
-    const rawStr = input ? input.value : (currentValues[ac.id] || 0);
-    const val = parseCurrencyNumber(rawStr);
+    
+    // Read from the input field if it exists and has a value, otherwise fall back directly to currentValues from DB
+    let val = 0;
+    if (input && input.value !== '') {
+      val = parseCurrencyNumber(input.value);
+    } else if (currentValues[ac.id] !== undefined) {
+      val = parseFloat(currentValues[ac.id]) || 0;
+    }
 
-    // Mortgage deducts from Non-Liquid (Home Value), other liabilities deduct from Liquid
     if (ac.name === 'Mortgage Balance') {
       nonLiquid -= val;
     } else if (ac.is_liability) {
-      liquid -= val; // Loans & Credit Cards
+      liquid -= val;
     } else if (ac.is_liquid) {
       liquid += val;
     } else {
-      nonLiquid += val; // Home Value, Pensions
+      nonLiquid += val;
     }
   });
 
   const total = liquid + nonLiquid;
 
-  document.getElementById('total-net-worth').innerText = formatCurrency(total);
-  document.getElementById('liquid-net-worth').innerText = formatCurrency(liquid);
-  document.getElementById('non-liquid-net-worth').innerText = formatCurrency(nonLiquid);
+  // Fallback to the latest saved snapshot figures if individual asset calculations yield 0
+  let finalTotal = total;
+  let finalLiquid = liquid;
+  let finalNonLiquid = nonLiquid;
 
-  return { total, liquid, nonLiquid };
+  if (total === 0 && snapshots.length > 0) {
+    const latestSnapshot = snapshots[snapshots.length - 1];
+    finalTotal = latestSnapshot.total_net_worth || 0;
+    finalLiquid = latestSnapshot.liquid_net_worth || 0;
+    finalNonLiquid = latestSnapshot.non_liquid_net_worth || 0;
+  }
+
+  document.getElementById('total-net-worth').innerText = formatCurrency(finalTotal);
+  document.getElementById('liquid-net-worth').innerText = formatCurrency(finalLiquid);
+  document.getElementById('non-liquid-net-worth').innerText = formatCurrency(finalNonLiquid);
+
+  return { total: finalTotal, liquid: finalLiquid, nonLiquid: finalNonLiquid };
 }
 
 async function saveMonthlySnapshot() {
@@ -233,15 +275,16 @@ async function saveMonthlySnapshot() {
       non_liquid_net_worth: netWorth.nonLiquid
     });
 
-    alert('Entry saved successfully!');
+    alert('Saved successfully!');
     await fetchSnapshots();
     renderHistoryChart();
     calculateGrowthPercentages();
+    updateLastUpdatedBadge();
   } catch (err) {
     console.error('Save failed:', err);
     alert('Failed to save entry.');
   } finally {
-    btn.innerText = 'Save Monthly Entry';
+    btn.innerText = 'Save';
     btn.disabled = false;
   }
 }
@@ -281,10 +324,13 @@ function renderHistoryChart() {
 
   const labels = snapshots.map(s => {
     if (!s.snapshot_date) return '';
-    const dateObj = new Date(s.snapshot_date);
-    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-    const year = String(dateObj.getFullYear()).slice(-2);
-    return `${month}-${year}`;
+    const parts = s.snapshot_date.split('-');
+    if (parts.length >= 2) {
+      const year = parts[0].slice(-2);
+      const month = parts[1];
+      return `${month}-${year}`;
+    }
+    return s.snapshot_date;
   });
 
   const totalData = snapshots.map(s => s.total_net_worth);
@@ -298,29 +344,48 @@ function renderHistoryChart() {
     data: {
       labels: labels,
       datasets: [
-        { label: 'Total Net Worth', data: totalData, borderColor: '#2563eb', backgroundColor: '#2563eb', fill: false, tension: 0.2 },
-        { label: 'Liquid Net Worth', data: liquidData, borderColor: '#059669', backgroundColor: '#059669', fill: false, tension: 0.2 },
-        { label: 'Non-Liquid Net Worth', data: nonLiquidData, borderColor: '#d97706', backgroundColor: '#d97706', fill: false, tension: 0.2 }
+        { label: 'Total Net Worth', data: totalData, borderColor: '#38bdf8', backgroundColor: '#38bdf8', fill: false, tension: 0.2, pointRadius: 5 },
+        { label: 'Liquid Net Worth', data: liquidData, borderColor: '#34d399', backgroundColor: '#34d399', fill: false, tension: 0.2, pointRadius: 5 },
+        { label: 'Non-Liquid Net Worth', data: nonLiquidData, borderColor: '#fbbf24', backgroundColor: '#fbbf24', fill: false, tension: 0.2, pointRadius: 5 }
       ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      layout: { padding: { top: 25, right: 20 } },
+      layout: { padding: { top: 35, right: 25, bottom: 10, left: 15 } },
       plugins: {
         datalabels: {
           anchor: 'end',
           align: 'top',
-          color: '#1e293b',
-          font: { weight: 'bold', size: 10 },
-          formatter: (value) => formatCurrency(value)
+          color: '#f8fafc',
+          font: { weight: 'bold', size: 13 }, // Increased data label font size
+          formatter: (value) => formatCompactCurrency(value)
         },
         tooltip: {
+          titleFont: { size: 14 },
+          bodyFont: { size: 13 },
           callbacks: { label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.raw)}` }
+        },
+        legend: {
+          labels: { 
+            color: '#cbd5e1', 
+            font: { size: 14, weight: '600' }, // Larger legend text
+            padding: 20
+          }
         }
       },
       scales: {
-        y: { ticks: { callback: (v) => formatCurrency(v) } }
+        x: {
+          ticks: { 
+            color: '#cbd5e1',
+            font: { size: 13, weight: '500' } // Larger X-axis date labels
+          },
+          grid: { color: '#334155' }
+        },
+        y: {
+          display: false, // Hides the Y-axis numbers & axis entirely
+          grid: { display: false }
+        }
       }
     }
   });
