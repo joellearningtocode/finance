@@ -280,3 +280,150 @@ input[type="date"]:focus, input[type="text"]:focus, input[type="email"]:focus, i
 }
 .auth-card button:hover { background: #0369a1; }
 .error-msg { color: var(--danger) !important; margin-top: 10px; font-size: 0.85rem; }
+
+/* Filter Controls */
+.breakdown-card {
+  margin-top: 24px;
+}
+
+.filters-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: #0f172a;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  margin-bottom: 20px;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.filter-label {
+  font-weight: 600;
+  color: #94a3b8;
+  font-size: 0.875rem;
+  min-width: 90px;
+}
+
+.checkbox-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.checkbox-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #1e293b;
+  border: 1px solid #475569;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  color: #cbd5e1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.checkbox-pill:has(input:checked) {
+  background: #0284c7;
+  border-color: #38bdf8;
+  color: #ffffff;
+}
+
+.checkbox-pill input {
+  accent-color: #38bdf8;
+}
+
+/* Table Styling */
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.breakdown-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: right;
+  font-size: 0.9rem;
+}
+
+.breakdown-table th, 
+.breakdown-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #334155;
+}
+
+.breakdown-table th {
+  background-color: #0f172a;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.breakdown-table th:nth-child(1),
+.breakdown-table th:nth-child(2),
+.breakdown-table th:nth-child(3),
+.breakdown-table td:nth-child(1),
+.breakdown-table td:nth-child(2),
+.breakdown-table td:nth-child(3) {
+  text-align: left;
+}
+
+.breakdown-table tbody tr:hover {
+  background-color: #1e293b;
+}
+
+.totals-row td {
+  background-color: #0f172a;
+  border-top: 2px solid #38bdf8;
+  font-weight: bold;
+  color: #38bdf8;
+  font-size: 0.95rem;
+}
+
+.text-positive { color: #34d399; }
+.text-negative { color: #f87171; }
+/* Quick Filter Toggle Buttons */
+.filter-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #334155;
+}
+
+.btn-filter-action {
+  background: #1e293b;
+  border: 1px solid #475569;
+  color: #38bdf8;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-filter-action:hover {
+  background: #334155;
+  color: #ffffff;
+  border-color: #38bdf8;
+}
+/* Grey out disabled filter pills */
+.checkbox-pill:has(input:disabled) {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: #0f172a;
+  border-color: #334155;
+  color: #64748b;
+}
+
+.checkbox-pill input:disabled {
+  cursor: not-allowed;
+}

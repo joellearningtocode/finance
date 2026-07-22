@@ -89,6 +89,7 @@ async function showDashboard() {
   updateLastUpdatedBadge();
 
   document.getElementById('save-values-btn')?.addEventListener('click', saveMonthlySnapshot);
+  await fetchAndRenderBreakdownTable();
 }
 
 // Auth Handlers
@@ -287,6 +288,19 @@ async function saveMonthlySnapshot() {
     btn.innerText = 'Save';
     btn.disabled = false;
   }
+  // Insert line items into asset_history
+const historyInserts = assetClasses.map(ac => {
+  const input = document.getElementById(`asset-${ac.id}`);
+  const val = input ? parseCurrencyNumber(input.value) : 0;
+  return {
+    snapshot_date: snapshotDate,
+    asset_class_id: ac.id,
+    value: val
+  };
+});
+
+await supabaseClient.from('asset_history').upsert(historyInserts, { onConflict: 'snapshot_date, asset_class_id' });
+await fetchAndRenderBreakdownTable(); // Refresh table
 }
 
 function calculateGrowthPercentages() {
@@ -392,3 +406,238 @@ function renderHistoryChart() {
 }
 
 document.addEventListener('DOMContentLoaded', initApp);
+// State holders
+let assetHistoryData = [];
+let availableDates = [];
+
+// Fetch granular history and initialize breakdown table
+async function fetchAndRenderBreakdownTable() {
+  const { data, error } = await supabaseClient
+    .from('asset_history')
+    .select('snapshot_date, value, asset_class_id, asset_classes(id, name, owner, is_liquid, is_liability)')
+    .order('snapshot_date', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching asset history:', error);
+    return;
+  }
+
+  assetHistoryData = data || [];
+  
+  // Extract last 4 unique snapshot dates
+  const uniqueDates = [...new Set(assetHistoryData.map(d => d.snapshot_date))].sort();
+  availableDates = uniqueDates.slice(-4);
+
+  populateCategoryFilters();
+  setupFilterListeners();
+  renderBreakdownTable();
+}
+
+// Populate Category Checkboxes dynamically
+function populateCategoryFilters() {
+  const container = document.getElementById('category-filters');
+  if (!container) return;
+
+  const categories = [...new Set(assetClasses.map(ac => ac.name))];
+  container.innerHTML = categories.map(cat => `
+    <label class="checkbox-pill">
+      <input type="checkbox" value="${cat}" checked> ${cat}
+    </label>
+  `).join('');
+}
+
+// Attach change listeners to all filter checkboxes
+function setupFilterListeners() {
+  // Select All button
+  const selectAllBtn = document.getElementById('btn-select-all');
+  if (selectAllBtn) {
+    selectAllBtn.onclick = () => {
+      document.querySelectorAll('.filters-container input[type="checkbox"]').forEach(cb => {
+        cb.checked = true;
+        cb.disabled = false;
+      });
+      syncFilterDependencies();
+      renderBreakdownTable();
+    };
+  }
+
+  // Deselect All button
+  const deselectAllBtn = document.getElementById('btn-deselect-all');
+  if (deselectAllBtn) {
+    deselectAllBtn.onclick = () => {
+      document.querySelectorAll('.filters-container input[type="checkbox"]').forEach(cb => {
+        cb.checked = false;
+        cb.disabled = false;
+      });
+      syncFilterDependencies();
+      renderBreakdownTable();
+    };
+  }
+
+  // Asset Type checkboxes listener
+  document.querySelectorAll('#type-filters input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      syncFilterDependencies('type');
+      renderBreakdownTable();
+    });
+  });
+
+  // Category checkboxes listener
+  document.querySelectorAll('#category-filters input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      syncFilterDependencies('category');
+      renderBreakdownTable();
+    });
+  });
+
+  // Owner checkboxes listener
+  document.querySelectorAll('#owner-filters input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener('change', renderBreakdownTable);
+  });
+}
+
+// Synchronize state and disable/enable controls based on selection source
+function syncFilterDependencies(source) {
+  const typeCbs = Array.from(document.querySelectorAll('#type-filters input[type="checkbox"]'));
+  const categoryCbs = Array.from(document.querySelectorAll('#category-filters input[type="checkbox"]'));
+
+  const liquidTypes = typeCbs.filter(cb => cb.value === 'liquid' && cb.checked);
+  const nonLiquidTypes = typeCbs.filter(cb => cb.value === 'non-liquid' && cb.checked);
+
+  if (source === 'type') {
+    // If Asset Type is interacting: drive category states and disable category checkboxes
+    const hasTypeSelected = typeCbs.some(cb => cb.checked);
+
+    categoryCbs.forEach(catCb => {
+      const isLiquidCat = assetClasses.some(ac => ac.name === catCb.value && ac.is_liquid);
+      
+      if (hasTypeSelected) {
+        catCb.disabled = true;
+        catCb.checked = (isLiquidCat && liquidTypes.length > 0) || (!isLiquidCat && nonLiquidTypes.length > 0);
+      } else {
+        catCb.disabled = false;
+      }
+    });
+
+    // Re-enable type checkboxes
+    typeCbs.forEach(cb => cb.disabled = false);
+
+  } else if (source === 'category') {
+    // If Category is modified directly: disable Asset Type checkboxes
+    const allCategoriesChecked = categoryCbs.every(cb => cb.checked);
+    const noCategoriesChecked = categoryCbs.every(cb => !cb.checked);
+
+    if (!allCategoriesChecked && !noCategoriesChecked) {
+      typeCbs.forEach(cb => {
+        cb.disabled = true;
+      });
+    } else {
+      typeCbs.forEach(cb => cb.disabled = false);
+    }
+  }
+
+  // Deselect All button
+  const deselectAllBtn = document.getElementById('btn-deselect-all');
+  if (deselectAllBtn) {
+    deselectAllBtn.onclick = () => {
+      document.querySelectorAll('.filters-container input[type="checkbox"]').forEach(cb => cb.checked = false);
+      renderBreakdownTable();
+    };
+  }
+}
+
+// Render dynamic breakdown table
+function renderBreakdownTable() {
+  // Get active filter values
+  const selectedOwners = Array.from(document.querySelectorAll('#owner-filters input:checked')).map(cb => cb.value);
+  const selectedCategories = Array.from(document.querySelectorAll('#category-filters input:checked')).map(cb => cb.value);
+
+  // Set Table Header Dates
+  const headerRow = document.getElementById('table-header-row');
+  const dateHeadersHTML = availableDates.map(d => {
+    const parts = d.split('-');
+    const formatted = parts.length >= 2 ? `${parts[1]}-${parts[0].slice(-2)}` : d;
+    return `<th>${formatted}</th>`;
+  }).join('');
+
+  headerRow.innerHTML = `
+    <th>Owner</th>
+    <th>Asset / Liability</th>
+    <th>Type</th>
+    ${dateHeadersHTML}
+    <th>Avg Growth</th>
+  `;
+
+  // Filter asset classes by Owner and Category (since Asset Type auto-syncs Categories)
+  const filteredAssetClasses = assetClasses.filter(ac => {
+    const ownerMatch = selectedOwners.includes(ac.owner);
+    const categoryMatch = selectedCategories.includes(ac.name);
+    return ownerMatch && categoryMatch;
+  });
+
+  const tbody = document.getElementById('table-body');
+  tbody.innerHTML = '';
+
+  let dateTotals = new Array(availableDates.length).fill(0);
+
+  filteredAssetClasses.forEach(ac => {
+    let rowValues = [];
+    let stepGrowths = [];
+
+    availableDates.forEach((date, idx) => {
+      const match = assetHistoryData.find(h => h.asset_class_id === ac.id && h.snapshot_date === date);
+      let rawVal = match ? parseFloat(match.value) || 0 : 0;
+      
+      // Represent liabilities as negative
+      let displayVal = (ac.is_liability || ac.name.includes('Mortgage')) ? -Math.abs(rawVal) : rawVal;
+      
+      rowValues.push(displayVal);
+      dateTotals[idx] += displayVal;
+    });
+
+    // Option B: Mean Monthly Growth % across consecutive entries
+    for (let i = 1; i < rowValues.length; i++) {
+      const prev = rowValues[i - 1];
+      const curr = rowValues[i];
+      if (prev !== 0) {
+        stepGrowths.push((curr - prev) / Math.abs(prev));
+      }
+    }
+
+    let avgGrowthPct = 0;
+    if (stepGrowths.length > 0) {
+      avgGrowthPct = (stepGrowths.reduce((a, b) => a + b, 0) / stepGrowths.length) * 100;
+    }
+
+    const growthClass = avgGrowthPct > 0 ? 'text-positive' : (avgGrowthPct < 0 ? 'text-negative' : '');
+    const growthFormatted = avgGrowthPct === 0 ? '0.0%' : `${avgGrowthPct > 0 ? '+' : ''}${avgGrowthPct.toFixed(1)}%`;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${ac.owner}</td>
+      <td>${ac.name}</td>
+      <td>${ac.is_liquid ? 'Liquid' : 'Non-Liquid'}</td>
+      ${rowValues.map(v => `<td>${formatCurrency(v)}</td>`).join('')}
+      <td class="${growthClass}">${growthFormatted}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Calculate overall average growth for totals
+  let totalGrowths = [];
+  for (let i = 1; i < dateTotals.length; i++) {
+    if (dateTotals[i - 1] !== 0) {
+      totalGrowths.push((dateTotals[i] - dateTotals[i - 1]) / Math.abs(dateTotals[i - 1]));
+    }
+  }
+  let totalAvgGrowthPct = totalGrowths.length > 0 ? (totalGrowths.reduce((a, b) => a + b, 0) / totalGrowths.length) * 100 : 0;
+  const totalGrowthClass = totalAvgGrowthPct > 0 ? 'text-positive' : (totalAvgGrowthPct < 0 ? 'text-negative' : '');
+
+  // Render Footer Totals
+  const tfootRow = document.getElementById('table-footer-row');
+  tfootRow.innerHTML = `
+    <td colspan="3"><strong>Total</strong></td>
+    ${dateTotals.map(t => `<td><strong>${formatCurrency(t)}</strong></td>`).join('')}
+    <td id="avg-growth-total" class="${totalGrowthClass}"><strong>${totalAvgGrowthPct > 0 ? '+' : ''}${totalAvgGrowthPct.toFixed(1)}%</strong></td>
+  `;
+}

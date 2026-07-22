@@ -116,6 +116,71 @@
         <canvas id="historyChart"></canvas>
       </div>
     </section>
+    <section class="card breakdown-card">
+        <div class="card-header">
+          <h2>Asset & Liability Breakdown History</h2>
+          <p class="subtitle">Filterable view showing the last 4 recorded entries</p>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="filters-container">
+            <div class="filter-actions">
+    <button type="button" class="btn-filter-action" id="btn-select-all">Select All</button>
+    <button type="button" class="btn-filter-action" id="btn-deselect-all">Deselect All</button>
+  </div>
+
+  <div class="filter-group">
+    <span class="filter-label">Owner:</span>
+    <!-- ... rest of owner checkboxes ... -->
+          <div class="filter-group">
+                    <div class="checkbox-group" id="owner-filters">
+              <label class="checkbox-pill"><input type="checkbox" value="Joel" checked> Joel</label>
+              <label class="checkbox-pill"><input type="checkbox" value="Emma" checked> Emma</label>
+              <label class="checkbox-pill"><input type="checkbox" value="Joint" checked> Joint</label>
+            </div>
+          </div>
+
+          <div class="filter-group">
+            <span class="filter-label">Asset Type:</span>
+            <div class="checkbox-group" id="type-filters">
+              <label class="checkbox-pill"><input type="checkbox" value="liquid" checked> Liquid</label>
+              <label class="checkbox-pill"><input type="checkbox" value="non-liquid" checked> Non-Liquid</label>
+            </div>
+          </div>
+
+          <div class="filter-group">
+            <span class="filter-label">Category:</span>
+            <div class="checkbox-group" id="category-filters">
+              <!-- Dynamically populated from asset_classes -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic Breakdown Table -->
+        <div class="table-wrapper">
+          <table class="breakdown-table" id="breakdown-table">
+            <thead>
+              <tr id="table-header-row">
+                <th>Owner</th>
+                <th>Asset / Liability</th>
+                <th>Type</th>
+                <!-- Date headers dynamically inserted here -->
+                <th>Avg Growth</th>
+              </tr>
+            </thead>
+            <tbody id="table-body">
+              <!-- Rows dynamically populated -->
+            </tbody>
+            <tfoot>
+              <tr id="table-footer-row" class="totals-row">
+                <td colspan="3"><strong>Total</strong></td>
+                <!-- Calculated totals dynamically inserted here -->
+                <td id="avg-growth-total"><strong>-</strong></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
   </div>
 
   <script src="app.js"></script>
