@@ -61,6 +61,7 @@ async function initApp() {
   setupRetirementInputListeners();
   setupRetirementSeriesFilterListeners();
   setupDecumulationSeriesFilterListeners();
+  setupStressTestingListeners();
 
   document.getElementById('login-form')?.addEventListener('submit', handleLogin);
   document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
@@ -314,6 +315,7 @@ function renderInputForms() {
     });
   });
 }
+
 // DEDICATED NET WORTH CALCULATOR (Strict Live Calculation matching Breakdown Table)
 function calculateAndDisplayNetWorth() {
   let liquid = 0;
@@ -380,7 +382,6 @@ function calculateAndDisplayNetWorth() {
 }
 
 // BACKLOG ITEM 3: Other Cash Balances KPI Calculator (Including Company Shares & Subtracting Loans/Credit Cards)
-// BACKLOG ITEM 3: Other Cash Balances KPI Calculator
 function calculateAndDisplayOtherCashKPI() {
   let otherCashSum = 0;
 
@@ -831,29 +832,39 @@ let baselineRetirementData = {
 function setupNavigationListeners() {
   const btnNetAssets = document.getElementById('nav-net-assets');
   const btnRetirement = document.getElementById('nav-retirement');
+  const btnStressTest = document.getElementById('nav-stress-test');
+
   const viewNetAssets = document.getElementById('view-net-assets');
   const viewRetirement = document.getElementById('view-retirement');
+  const viewStressTest = document.getElementById('view-stress-test');
 
   if (!btnNetAssets || !btnRetirement || !viewNetAssets || !viewRetirement) {
     console.error('Navigation elements missing!', { btnNetAssets, btnRetirement, viewNetAssets, viewRetirement });
     return;
   }
 
+  const resetNavState = () => {
+    btnNetAssets.classList.remove('active');
+    btnRetirement.classList.remove('active');
+    if (btnStressTest) btnStressTest.classList.remove('active');
+
+    viewNetAssets.style.display = 'none';
+    viewRetirement.style.display = 'none';
+    if (viewStressTest) viewStressTest.style.display = 'none';
+  };
+
   btnNetAssets.onclick = (e) => {
     e.preventDefault();
+    resetNavState();
     btnNetAssets.classList.add('active');
-    btnRetirement.classList.remove('active');
     viewNetAssets.style.display = 'block';
-    viewRetirement.style.display = 'none';
     currentRetirementView = 'net-assets';
   };
 
   btnRetirement.onclick = (e) => {
     e.preventDefault();
+    resetNavState();
     btnRetirement.classList.add('active');
-    btnNetAssets.classList.remove('active');
-    viewNetAssets.style.display = 'none';
-    
     viewRetirement.style.display = 'block';
     currentRetirementView = 'retirement';
 
@@ -875,6 +886,19 @@ function setupNavigationListeners() {
       }
     }, 50);
   };
+
+  if (btnStressTest && viewStressTest) {
+    btnStressTest.onclick = (e) => {
+      e.preventDefault();
+      resetNavState();
+      btnStressTest.classList.add('active');
+      viewStressTest.style.display = 'block';
+      currentRetirementView = 'stress-test';
+
+      extractRetirementBaselineData();
+      runStressTestSimulation();
+    };
+  }
 }
 
 // 1. DEDICATED RETIREMENT BASELINE EXTRACTOR (Strict Asset Mapping)
@@ -970,8 +994,8 @@ function calculateSDLT(propertyValue) {
 }
 
 // Mortgage & Deposit Metrics Calculator
-function calculateMortgageMetrics(ageJoelVal) {
-  const homeValue = parseCurrencyNumber(document.getElementById('mort-home-value')?.value || '1200000');
+function calculateMortgageMetrics(ageJoelVal, customHomeValue = null) {
+  const homeValue = customHomeValue !== null ? customHomeValue : parseCurrencyNumber(document.getElementById('mort-home-value')?.value || '1200000');
   const ltvPct = (parseFloat(document.getElementById('mort-ltv-pct')?.value) || 80) / 100;
   const annualInterestRate = (parseFloat(document.getElementById('mort-interest-rate')?.value) || 4.1) / 100;
   const termYears = parseInt(document.getElementById('mort-term-years')?.value, 10) || 25;
@@ -983,7 +1007,7 @@ function calculateMortgageMetrics(ageJoelVal) {
   const totalDepositIncSDLT = baseDeposit + stampDuty;
 
   const depEl = document.getElementById('mort-deposit-val');
-  if (depEl) depEl.value = formatInputValue(totalDepositIncSDLT);
+  if (depEl && customHomeValue === null) depEl.value = formatInputValue(totalDepositIncSDLT);
 
   const monthlyRate = annualInterestRate / 12;
   const totalPayments = termYears * 12;
@@ -996,9 +1020,9 @@ function calculateMortgageMetrics(ageJoelVal) {
   }
 
   const payEl = document.getElementById('mort-monthly-payment');
-  if (payEl) payEl.value = formatInputValue(monthlyPayment);
+  if (payEl && customHomeValue === null) payEl.value = formatInputValue(monthlyPayment);
 
-  const joelRetireYear = 1991 + ageJoelVal;
+  const joelRetireYear = 1991 + Math.floor(ageJoelVal);
   const totalMonthsElapsed = Math.max(0, ((joelRetireYear - purchaseYear) * 12) + (10 - 4));
   const monthsRemaining = Math.max(0, totalPayments - totalMonthsElapsed);
 
@@ -1008,7 +1032,7 @@ function calculateMortgageMetrics(ageJoelVal) {
   }
 
   const balEl = document.getElementById('mort-balance-at-retirement');
-  if (balEl) balEl.value = formatInputValue(outstandingBalanceAtRetirement);
+  if (balEl && customHomeValue === null) balEl.value = formatInputValue(outstandingBalanceAtRetirement);
 
   return {
     baseDeposit,
@@ -1136,7 +1160,6 @@ function setupRetirementInputListeners() {
   syncAgesAndCalculate();
 }
 
-// Primary Retirement Projection & Decumulation Simulation
 // Primary Retirement Projection & Decumulation Simulation
 function calculateRetirementForecast() {
   if (!baselineRetirementData.snapshotDate) {
@@ -1794,4 +1817,390 @@ function renderAnnualDrawdownChart(years, amounts) {
       }
     }
   });
+}
+
+// ============================================================================
+// STRESS TESTING CONTROL CENTER & SIMULATION ENGINE
+// ============================================================================
+
+function setupStressTestingListeners() {
+  const sliderAge = document.getElementById('st-slider-age');
+  const sliderGrowth = document.getElementById('st-slider-growth');
+  const sliderExpense = document.getElementById('st-slider-expense');
+  const sliderHouse = document.getElementById('st-slider-house');
+  const sliderOneoff = document.getElementById('st-slider-oneoff');
+
+  const valAge = document.getElementById('st-val-age');
+  const valGrowth = document.getElementById('st-val-growth');
+  const valExpense = document.getElementById('st-val-expense');
+  const valHouse = document.getElementById('st-val-house');
+  const valOneoff = document.getElementById('st-val-oneoff');
+
+  const btnReset = document.getElementById('st-btn-reset');
+
+  const syncAndRun = () => {
+    if (valAge && sliderAge) valAge.innerText = `${parseFloat(sliderAge.value).toFixed(1)} years (${1991 + Math.floor(parseFloat(sliderAge.value))})`;
+    if (valGrowth && sliderGrowth) valGrowth.innerText = `${parseFloat(sliderGrowth.value).toFixed(1)}%`;
+    if (valExpense && sliderExpense) valExpense.innerText = formatCurrency(sliderExpense.value);
+    if (valHouse && sliderHouse) valHouse.innerText = formatCurrency(sliderHouse.value);
+    if (valOneoff && sliderOneoff) valOneoff.innerText = formatCurrency(sliderOneoff.value);
+
+    runStressTestSimulation();
+  };
+
+  [sliderAge, sliderGrowth, sliderExpense, sliderHouse, sliderOneoff].forEach(slider => {
+    slider?.addEventListener('input', syncAndRun);
+  });
+
+  btnReset?.addEventListener('click', () => {
+    const baseAge = parseFloat(document.getElementById('ret-age-joel')?.value) || 53;
+    const baseGrowth = parseFloat(document.getElementById('ret-growth-rate')?.value) || 5;
+    const baseExpense = parseCurrencyNumber(document.getElementById('ret-monthly-expense')?.value || '5000');
+    const baseHouse = parseCurrencyNumber(document.getElementById('mort-home-value')?.value || '1200000');
+
+    if (sliderAge) sliderAge.value = baseAge;
+    if (sliderGrowth) sliderGrowth.value = baseGrowth;
+    if (sliderExpense) sliderExpense.value = baseExpense;
+    if (sliderHouse) sliderHouse.value = baseHouse;
+    if (sliderOneoff) sliderOneoff.value = 100000;
+
+    syncAndRun();
+  });
+}
+
+function runStressTestSimulation() {
+  if (!baselineRetirementData.snapshotDate) extractRetirementBaselineData();
+
+  const sliderAge = parseFloat(document.getElementById('st-slider-age')?.value) || 53;
+  const sliderGrowth = (parseFloat(document.getElementById('st-slider-growth')?.value) || 5) / 100;
+  const sliderExpenseNet = parseFloat(document.getElementById('st-slider-expense')?.value) || 5000;
+  const sliderHouse = parseFloat(document.getElementById('st-slider-house')?.value) || 1200000;
+  const sliderOneoff = parseFloat(document.getElementById('st-slider-oneoff')?.value) || 100000;
+
+  const annualPensionJoel = parseCurrencyNumber(document.getElementById('ret-pension-joel')?.value || '40000');
+  const annualPensionEmma = parseCurrencyNumber(document.getElementById('ret-pension-emma')?.value || '25000');
+  const annualIsaJoel = parseCurrencyNumber(document.getElementById('ret-isa-joel')?.value || '20000');
+  const annualIsaEmma = parseCurrencyNumber(document.getElementById('ret-isa-emma')?.value || '20000');
+
+  const annualPersonalAllowancePerPerson = parseCurrencyNumber(document.getElementById('ret-tax-free-allowance')?.value || '12570');
+  const annualStatePensionPerPerson = parseCurrencyNumber(document.getElementById('ret-state-pension-amt')?.value || '12547');
+  const statePensionAgeInput = parseInt(document.getElementById('ret-state-pension-age')?.value, 10) || 68;
+
+  const mortMetrics = calculateMortgageMetrics(sliderAge, sliderHouse);
+
+  const jointRetireYear = 1991 + Math.floor(sliderAge);
+
+  // Parse pre-retirement withdrawals (substituting slider value if year matches 2029)
+  const preWithdrawals = [];
+  document.querySelectorAll('#drawdowns-list-container .drawdown-row').forEach(row => {
+    const amt = parseCurrencyNumber(row.querySelector('.drawdown-amount')?.value);
+    const yr = parseInt(row.querySelector('.drawdown-year')?.value, 10);
+    if (amt > 0 && yr) {
+      preWithdrawals.push({ amount: (yr === 2029 ? sliderOneoff : amt), year: yr });
+    }
+  });
+
+  const baseDate = new Date(baselineRetirementData.snapshotDate || new Date());
+  let currentYear = baseDate.getFullYear();
+  let currentMonth = baseDate.getMonth() + 1;
+
+  let simYear = currentYear;
+  let simMonth = currentMonth;
+
+  let joelIsa = baselineRetirementData.joelISA;
+  let emmaIsa = baselineRetirementData.emmaISA;
+  let joelPension = baselineRetirementData.joelPension;
+  let emmaPension = baselineRetirementData.emmaPension;
+  let totalGia = baselineRetirementData.joelGIA + baselineRetirementData.emmaGIA + baselineRetirementData.jointGIA;
+
+  const monthlyGrowthRate = Math.pow(1 + sliderGrowth, 1 / 12) - 1;
+
+  // PHASE 1: ACCUMULATION (Identical logic to calculateRetirementForecast)
+  while (simYear < jointRetireYear || (simYear === jointRetireYear && simMonth <= 10)) {
+    const inTaper = simYear >= (jointRetireYear - 2);
+    const effectiveGrowthRate = inTaper ? (monthlyGrowthRate * 0.3) : monthlyGrowthRate;
+
+    joelPension += (annualPensionJoel / 12);
+    joelIsa += (annualIsaJoel / 12);
+    emmaPension += (annualPensionEmma / 12);
+    emmaIsa += (annualIsaEmma / 12);
+
+    joelPension *= (1 + effectiveGrowthRate);
+    emmaPension *= (1 + effectiveGrowthRate);
+    joelIsa *= (1 + effectiveGrowthRate);
+    emmaIsa *= (1 + effectiveGrowthRate);
+    totalGia *= (1 + effectiveGrowthRate);
+
+    if (simMonth === 4) {
+      preWithdrawals.forEach(w => {
+        if (w.year === simYear) {
+          let halfAmt = w.amount / 2;
+          
+          if (joelIsa >= halfAmt) {
+            joelIsa -= halfAmt;
+          } else {
+            let remain = halfAmt - joelIsa;
+            joelIsa = 0;
+            totalGia = Math.max(0, totalGia - remain);
+          }
+
+          if (emmaIsa >= halfAmt) {
+            emmaIsa -= halfAmt;
+          } else {
+            let remain = halfAmt - emmaIsa;
+            emmaIsa = 0;
+            totalGia = Math.max(0, totalGia - remain);
+          }
+        }
+      });
+    }
+
+    simMonth++;
+    if (simMonth > 12) {
+      simMonth = 1;
+      simYear++;
+    }
+  }
+
+  // Day 1 Mortgage Payoff
+  const day1MortgagePayoff = mortMetrics.outstandingBalanceAtRetirement;
+  let halfMortPayoff = day1MortgagePayoff / 2;
+
+  if (joelIsa >= halfMortPayoff) {
+    joelIsa -= halfMortPayoff;
+  } else {
+    let remain = halfMortPayoff - joelIsa;
+    joelIsa = 0;
+    totalGia = Math.max(0, totalGia - remain);
+  }
+
+  if (emmaIsa >= halfMortPayoff) {
+    emmaIsa -= halfMortPayoff;
+  } else {
+    let remain = halfMortPayoff - emmaIsa;
+    emmaIsa = 0;
+    totalGia = Math.max(0, totalGia - remain);
+  }
+
+  // PHASE 2: DECUMULATION & ESTATE LEGACY ENGINE
+  const postLumpSums = [];
+  document.querySelectorAll('#post-lump-list-container .post-lump-row').forEach(row => {
+    const amt = parseCurrencyNumber(row.querySelector('.post-lump-amount')?.value);
+    const yr = parseInt(row.querySelector('.post-lump-year')?.value, 10);
+    if (amt > 0 && yr) {
+      postLumpSums.push({ amount: amt, year: yr });
+    }
+  });
+
+  const emmaAge90Year = 2084;
+  const emmaAge90Month = 3;
+
+  // Exact milestone alignment
+  const joelPrivatePensionYear = 1991 + 57; // 2048 (Age 57)
+  const emmaPrivatePensionYear = 1994 + 57; // 2051 (Age 57)
+
+  const joelStatePensionYear = 1991 + statePensionAgeInput;
+  const emmaStatePensionYear = 1994 + statePensionAgeInput;
+
+  let minIsaPre58 = joelIsa + emmaIsa;
+  let isaShortfallAge = null;
+  let isaShortfallAmount = 0;
+  let portfolioDepletedAge = null;
+
+  let joelAllowanceRem = annualPersonalAllowancePerPerson;
+  let emmaAllowanceRem = annualPersonalAllowancePerPerson;
+
+  simMonth++;
+  if (simMonth > 12) {
+    simMonth = 1;
+    simYear++;
+  }
+
+  const blendedAnnualRate = sliderGrowth * 0.75;
+  const monthlyDecumulationRate = Math.pow(1 + blendedAnnualRate, 1 / 12) - 1;
+
+  while (simYear < emmaAge90Year || (simYear === emmaAge90Year && simMonth <= emmaAge90Month)) {
+    if (simMonth === 4) {
+      joelAllowanceRem = annualPersonalAllowancePerPerson;
+      emmaAllowanceRem = annualPersonalAllowancePerPerson;
+    }
+
+    joelPension *= (1 + monthlyDecumulationRate);
+    emmaPension *= (1 + monthlyDecumulationRate);
+    joelIsa *= (1 + monthlyDecumulationRate);
+    emmaIsa *= (1 + monthlyDecumulationRate);
+    totalGia *= (1 + monthlyDecumulationRate);
+
+    const joelPrivateAccessible = (simYear > joelPrivatePensionYear) || (simYear === joelPrivatePensionYear && simMonth >= 10);
+    const emmaPrivateAccessible = (simYear > emmaPrivatePensionYear) || (simYear === emmaPrivatePensionYear && simMonth >= 3);
+
+    const joelStateActive = (simYear > joelStatePensionYear) || (simYear === joelStatePensionYear && simMonth >= 10);
+    const emmaStateActive = (simYear > emmaStatePensionYear) || (simYear === emmaStatePensionYear && simMonth >= 3);
+
+    let monthlyStateIncomeJoel = joelStateActive ? (annualStatePensionPerPerson / 12) : 0;
+    let monthlyStateIncomeEmma = emmaStateActive ? (annualStatePensionPerPerson / 12) : 0;
+
+    if (joelStateActive) {
+      joelAllowanceRem = Math.max(0, joelAllowanceRem - (annualStatePensionPerPerson / 12));
+    }
+    if (emmaStateActive) {
+      emmaAllowanceRem = Math.max(0, emmaAllowanceRem - (annualStatePensionPerPerson / 12));
+    }
+
+    let netNeededFromPortfolio = Math.max(0, sliderExpenseNet - monthlyStateIncomeJoel - monthlyStateIncomeEmma);
+
+    // Track lowest ISA balance prior to Joel Age 58 (Oct 2049)
+    if (simYear < 2049 || (simYear === 2049 && simMonth < 10)) {
+      const currentIsaTotal = joelIsa + emmaIsa;
+      if (currentIsaTotal < minIsaPre58) minIsaPre58 = currentIsaTotal;
+
+      if (netNeededFromPortfolio > currentIsaTotal && isaShortfallAge === null) {
+        isaShortfallAge = simYear - 1991;
+        isaShortfallAmount = netNeededFromPortfolio - currentIsaTotal;
+      }
+    }
+
+    if (netNeededFromPortfolio > 0) {
+      // Step 1: Draw from Private Pensions up to remaining Personal Allowance Headroom (0% Tax)
+      let joelTaxFreeDraw = 0;
+      if (joelPrivateAccessible && joelPension > 0 && joelAllowanceRem > 0) {
+        joelTaxFreeDraw = Math.min(netNeededFromPortfolio / 2, joelPension, joelAllowanceRem);
+        joelPension -= joelTaxFreeDraw;
+        joelAllowanceRem -= joelTaxFreeDraw;
+      }
+
+      let emmaTaxFreeDraw = 0;
+      if (emmaPrivateAccessible && emmaPension > 0 && emmaAllowanceRem > 0) {
+        emmaTaxFreeDraw = Math.min(netNeededFromPortfolio / 2, emmaPension, emmaAllowanceRem);
+        emmaPension -= emmaTaxFreeDraw;
+        emmaAllowanceRem -= emmaTaxFreeDraw;
+      }
+
+      netNeededFromPortfolio -= (joelTaxFreeDraw + emmaTaxFreeDraw);
+
+      // Step 2: Draw remaining living expenses from ISAs / Cash (0% Tax Shield)
+      if (netNeededFromPortfolio > 0 && (joelIsa + emmaIsa > 0)) {
+        let halfIsaNeeded = netNeededFromPortfolio / 2;
+
+        if (joelIsa >= halfIsaNeeded) {
+          joelIsa -= halfIsaNeeded;
+          netNeededFromPortfolio -= halfIsaNeeded;
+        } else {
+          netNeededFromPortfolio -= joelIsa;
+          joelIsa = 0;
+        }
+
+        if (emmaIsa >= halfIsaNeeded) {
+          emmaIsa -= halfIsaNeeded;
+          netNeededFromPortfolio -= halfIsaNeeded;
+        } else {
+          netNeededFromPortfolio -= emmaIsa;
+          emmaIsa = 0;
+        }
+      }
+
+      // Step 3: Draw remaining expenses from Private Pensions grossed up for 20% Tax
+      if (netNeededFromPortfolio > 0 && (joelPension + emmaPension > 0)) {
+        const grossNeeded = netNeededFromPortfolio / 0.8;
+        let halfGross = grossNeeded / 2;
+
+        if (joelPrivateAccessible && joelPension >= halfGross) {
+          joelPension -= halfGross;
+        } else if (joelPrivateAccessible) {
+          let remainGross = halfGross - joelPension;
+          joelPension = 0;
+          if (emmaPrivateAccessible) emmaPension = Math.max(0, emmaPension - remainGross);
+        }
+
+        if (emmaPrivateAccessible && emmaPension >= halfGross) {
+          emmaPension -= halfGross;
+        } else if (emmaPrivateAccessible) {
+          let remainGross = halfGross - emmaPension;
+          emmaPension = 0;
+          if (joelPrivateAccessible) joelPension = Math.max(0, joelPension - remainGross);
+        }
+
+        netNeededFromPortfolio = 0;
+      }
+
+      // Step 4: Final GIA fallback
+      if (netNeededFromPortfolio > 0 && totalGia > 0) {
+        const giaDraw = Math.min(netNeededFromPortfolio, totalGia);
+        totalGia -= giaDraw;
+        netNeededFromPortfolio -= giaDraw;
+      }
+    }
+
+    if (simMonth === 4) {
+      postLumpSums.forEach(ls => {
+        if (ls.year === simYear) {
+          let halfLump = ls.amount / 2;
+
+          if (joelIsa >= halfLump) {
+            joelIsa -= halfLump;
+          } else {
+            let remain = halfLump - joelIsa;
+            joelIsa = 0;
+            totalGia = Math.max(0, totalGia - remain);
+          }
+
+          if (emmaIsa >= halfLump) {
+            emmaIsa -= halfLump;
+          } else {
+            let remain = halfLump - emmaIsa;
+            emmaIsa = 0;
+            totalGia = Math.max(0, totalGia - remain);
+          }
+        }
+      });
+    }
+
+    const totalPortfolioRemaining = joelPension + emmaPension + joelIsa + emmaIsa + totalGia;
+    if (totalPortfolioRemaining <= 0 && portfolioDepletedAge === null) {
+      portfolioDepletedAge = (simYear - 1994).toFixed(1);
+    }
+
+    simMonth++;
+    if (simMonth > 12) {
+      simMonth = 1;
+      simYear++;
+    }
+  }
+
+  // UPDATE TRAFFIC LIGHT UI CARDS
+  const cardIsa = document.getElementById('st-card-isa');
+  const titleIsa = document.getElementById('st-title-isa');
+  const valIsa = document.getElementById('st-val-isa-card');
+  const subIsa = document.getElementById('st-sub-isa');
+
+  if (isaShortfallAge === null) {
+    if (cardIsa) cardIsa.className = 'card border-positive';
+    if (titleIsa) titleIsa.innerText = '🟢 ISA Bridge Intact';
+    if (valIsa) { valIsa.innerText = formatCurrency(minIsaPre58); valIsa.className = 'text-positive'; }
+    if (subIsa) subIsa.innerText = 'Lowest ISA balance before Joel reaches age 58.';
+  } else {
+    if (cardIsa) cardIsa.className = 'card border-negative';
+    if (titleIsa) titleIsa.innerText = '🔴 ISA Shortfall Detected';
+    if (valIsa) { valIsa.innerText = `Depleted Age ${isaShortfallAge}`; valIsa.className = 'text-negative'; }
+    if (subIsa) subIsa.innerText = `ISAs run out at Joel Age ${isaShortfallAge}. Deficit: ${formatCurrency(isaShortfallAmount)}/mo.`;
+  }
+
+  const cardLegacy = document.getElementById('st-card-legacy');
+  const titleLegacy = document.getElementById('st-title-legacy');
+  const valLegacy = document.getElementById('st-val-legacy-card');
+  const subLegacy = document.getElementById('st-sub-legacy');
+
+  const finalLegacy = joelPension + emmaPension + joelIsa + emmaIsa + totalGia;
+
+  if (portfolioDepletedAge === null) {
+    if (cardLegacy) cardLegacy.className = 'card border-positive';
+    if (titleLegacy) titleLegacy.innerText = '🟢 Portfolio Longevity Intact';
+    if (valLegacy) { valLegacy.innerText = formatCurrency(finalLegacy); valLegacy.className = 'text-positive'; }
+    if (subLegacy) subLegacy.innerText = 'Remaining portfolio balance at Emma Age 90.';
+  } else {
+    if (cardLegacy) cardLegacy.className = 'card border-negative';
+    if (titleLegacy) titleLegacy.innerText = '🔴 Portfolio Depleted Early';
+    if (valLegacy) { valLegacy.innerText = `Depleted Age ${portfolioDepletedAge}`; valLegacy.className = 'text-negative'; }
+    if (subLegacy) subLegacy.innerText = `Total wealth reaches £0 when Emma turns Age ${portfolioDepletedAge}.`;
+  }
 }

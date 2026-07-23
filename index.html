@@ -52,6 +52,7 @@
           <nav class="main-nav">
             <button type="button" class="nav-btn active" id="nav-net-assets">Net Assets</button>
             <button type="button" class="nav-btn" id="nav-retirement">Retirement Planning</button>
+            <button type="button" class="nav-btn" id="nav-stress-test">Stress Testing</button>
           </nav>
           <span id="last-updated-badge" class="last-updated">Last Updated: Never</span>
           <button id="logout-btn" class="secondary-btn">Log Out</button>
@@ -518,6 +519,86 @@
       </div>
 
     </div><!-- END #view-retirement -->
+
+    <!-- VIEW 3: STRESS TESTING CONTROL CENTER -->
+    <div id="view-stress-test" class="view-panel" style="display: none;">
+      
+      <!-- Traffic Light Safeguard Badges -->
+      <section class="metrics-grid" style="margin-bottom: 2rem;">
+        <div id="st-card-isa" class="card" style="border-top: 4px solid #34d399;">
+          <h3 id="st-title-isa" style="font-size: 0.95rem; text-transform: uppercase;">🟢 ISA Bridge Intact</h3>
+          <p id="st-val-isa-card" style="font-size: 1.8rem; font-weight: bold; color: #34d399; margin-top: 8px;">£0.00</p>
+          <div id="st-sub-isa" class="subtitle" style="font-size: 0.85rem; color: #cbd5e1; margin-top: 4px;">Lowest ISA balance before Joel reaches age 58.</div>
+        </div>
+
+        <div id="st-card-legacy" class="card" style="border-top: 4px solid #38bdf8;">
+          <h3 id="st-title-legacy" style="font-size: 0.95rem; text-transform: uppercase;">🟢 Portfolio Longevity Intact</h3>
+          <p id="st-val-legacy-card" style="font-size: 1.8rem; font-weight: bold; color: #38bdf8; margin-top: 8px;">£0.00</p>
+          <div id="st-sub-legacy" class="subtitle" style="font-size: 0.85rem; color: #cbd5e1; margin-top: 4px;">Remaining portfolio balance at Emma Age 90.</div>
+        </div>
+      </section>
+
+      <!-- Interactive Slider Controls Card -->
+      <div class="card" style="padding: 1.5rem; margin-bottom: 2rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+          <div>
+            <h3 style="margin: 0; font-size: 1.2rem; color: #f8fafc;">Interactive Sensitivity Sliders</h3>
+            <p class="subtitle" style="margin-top: 4px;">Drag levers below to test how key variables impact your ISA bridge and long-term legacy.</p>
+          </div>
+          <button type="button" id="st-btn-reset" class="btn-filter-action" style="padding: 8px 16px; font-size: 0.85rem;">🔄 Reset to Base Case</button>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+          
+          <!-- Slider 1: Joel Retirement Age -->
+          <div class="input-group" style="background: #0f172a; padding: 1rem; border-radius: 8px; border: 1px solid #334155;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+              <label style="font-weight: 600; color: #cbd5e1;">Joel Retirement Age:</label>
+              <span id="st-val-age" style="font-weight: bold; color: #38bdf8;">53.0 years (2044)</span>
+            </div>
+            <input type="range" id="st-slider-age" min="45" max="60" step="0.5" value="53" style="width: 100%; accent-color: #38bdf8;">
+          </div>
+
+          <!-- Slider 2: Real Growth Rate -->
+          <div class="input-group" style="background: #0f172a; padding: 1rem; border-radius: 8px; border: 1px solid #334155;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+              <label style="font-weight: 600; color: #cbd5e1;">Real Growth Rate (net of inflation):</label>
+              <span id="st-val-growth" style="font-weight: bold; color: #38bdf8;">5.0%</span>
+            </div>
+            <input type="range" id="st-slider-growth" min="1.0" max="8.0" step="0.1" value="5.0" style="width: 100%; accent-color: #38bdf8;">
+          </div>
+
+          <!-- Slider 3: Monthly Living Expenses -->
+          <div class="input-group" style="background: #0f172a; padding: 1rem; border-radius: 8px; border: 1px solid #334155;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+              <label style="font-weight: 600; color: #cbd5e1;">Monthly Living Expenses:</label>
+              <span id="st-val-expense" style="font-weight: bold; color: #34d399;">£5,000.00</span>
+            </div>
+            <input type="range" id="st-slider-expense" min="3000" max="10000" step="500" value="5000" style="width: 100%; accent-color: #34d399;">
+          </div>
+
+          <!-- Slider 4: New Home Purchase Value -->
+          <div class="input-group" style="background: #0f172a; padding: 1rem; border-radius: 8px; border: 1px solid #334155;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+              <label style="font-weight: 600; color: #cbd5e1;">New Home Purchase Value:</label>
+              <span id="st-val-house" style="font-weight: bold; color: #fbbf24;">£1,200,000.00</span>
+            </div>
+            <input type="range" id="st-slider-house" min="600000" max="2000000" step="50000" value="1200000" style="width: 100%; accent-color: #fbbf24;">
+          </div>
+
+          <!-- Slider 5: Pre-Retirement One-Offs -->
+          <div class="input-group" style="background: #0f172a; padding: 1rem; border-radius: 8px; border: 1px solid #334155;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+              <label style="font-weight: 600; color: #cbd5e1;">Pre-Retirement One-Off Withdrawal:</label>
+              <span id="st-val-oneoff" style="font-weight: bold; color: #a855f7;">£100,000.00</span>
+            </div>
+            <input type="range" id="st-slider-oneoff" min="0" max="250000" step="50000" value="100000" style="width: 100%; accent-color: #a855f7;">
+          </div>
+
+        </div>
+      </div>
+
+    </div><!-- END #view-stress-test -->
 
   </div><!-- END #app-container -->
 

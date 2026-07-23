@@ -171,6 +171,15 @@ header p {
 .growth-positive { color: #34d399 !important; font-weight: 600; }
 .growth-negative { color: #f87171 !important; font-weight: 600; }
 
+/* Dynamic Traffic Light Card Borders for Stress Testing */
+.border-positive {
+  border-top: 4px solid #34d399 !important;
+}
+
+.border-negative {
+  border-top: 4px solid #f87171 !important;
+}
+
 /* Form & Inputs */
 .data-section, .chart-section {
   background: var(--bg-card);
@@ -219,6 +228,31 @@ input[type="date"], input[type="text"], input[type="number"], input[type="email"
 
 input[type="date"]:focus, input[type="text"]:focus, input[type="number"]:focus, input[type="email"]:focus, input[type="password"]:focus {
   border-color: var(--border-focus);
+}
+
+/* Custom Range Input Styling for Stress Testing Sliders */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: #1e293b;
+  height: 8px;
+  border-radius: 4px;
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #38bdf8;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
 }
 
 /* Disabled Input State */
