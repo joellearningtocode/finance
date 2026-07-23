@@ -472,7 +472,7 @@ function renderHistoryChart() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      layout: { padding: { top: 35, right: 25, bottom: 10, left: 15 } },
+      layout: { padding: { top: 40, right: 25, bottom: 10, left: 25 } },
       plugins: {
         datalabels: {
           anchor: 'end',
@@ -542,8 +542,9 @@ function populateCategoryFilters() {
   if (!container) return;
 
   const categories = [...new Set(assetClasses.map(ac => ac.name))];
+
   container.innerHTML = categories.map(cat => `
-    <label class="checkbox-pill">
+    <label class="checkbox-pill pill-dark">
       <input type="checkbox" value="${cat}" checked> ${cat}
     </label>
   `).join('');
