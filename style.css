@@ -358,7 +358,6 @@ input:disabled {
   table-layout: auto;
 }
 
-
 .filters-container {
   display: flex;
   flex-direction: column;
@@ -551,7 +550,7 @@ input:disabled {
   font-size: 0.75rem;
   color: #cbd5e1;
 }
-/* Neutral Dark Pill Style for Owner, Type, and Other Categories */
+
 /* Uniform Dark Pill Theme for All Filters */
 .pill-dark {
   background-color: #1e293b !important;

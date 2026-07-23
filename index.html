@@ -14,6 +14,9 @@
   
   <!-- Chart.js Datalabels Plugin v2 -->
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+
+  <!-- Chart.js Annotation Plugin -->
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 </head>
 <body>
 
@@ -200,78 +203,189 @@
     <!-- VIEW 2: RETIREMENT PLANNING -->
     <div id="view-retirement" class="view-panel" style="display: none;">
       
-      <!-- Section 1: Forecast Variables -->
-      <div id="retirement-variables-container" class="card" style="margin-bottom: 2rem; padding: 1.5rem;">
-        <h3>1. Forecast Variables & Assumptions</h3>
-        <p class="subtitle">Adjust inputs below to stress-test your projections in real-time.</p>
+      <!-- CONSOLIDATED VARIABLES HEADER PANEL -->
+      <div id="all-variables-container" class="card" style="margin-bottom: 2rem; padding: 1.5rem;">
         
-        <div class="inputs-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 1rem;">
-          <div class="input-group">
-            <label for="ret-growth-rate">Real Growth Rate (% net of inflation)</label>
-            <input type="number" id="ret-growth-rate" value="5" step="0.1" min="0">
+        <!-- 1. Forecast Variables & Assumptions -->
+        <div style="margin-bottom: 1.5rem;">
+          <h3>1. Forecast Variables & Assumptions</h3>
+          <p class="subtitle" style="margin-bottom: 1rem;">Adjust inputs below to stress-test your projections in real-time.</p>
+          
+          <div class="inputs-grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
+            <div class="input-group">
+              <label for="ret-growth-rate">Real Growth Rate (% net of inflation)</label>
+              <input type="number" id="ret-growth-rate" value="5" step="0.1" min="0">
+            </div>
+
+            <div class="input-group">
+              <label for="ret-age-joel">Joel Retirement Age <span id="ret-year-joel" style="color: #38bdf8; font-weight: bold;">(2044)</span></label>
+              <input type="number" id="ret-age-joel" value="53" min="40" max="80">
+            </div>
+
+            <div class="input-group">
+              <label for="ret-age-emma">Emma Retirement Age (Synchronized) <span id="ret-year-emma" style="color: #38bdf8; font-weight: bold;">(2044)</span></label>
+              <input type="number" id="ret-age-emma" value="50.6" disabled style="opacity: 0.7; cursor: not-allowed;">
+            </div>
+
+            <div class="input-group">
+              <label for="ret-pension-joel">Joel Annual Pension (£)</label>
+              <input type="text" id="ret-pension-joel" value="40,000.00">
+            </div>
+
+            <div class="input-group">
+              <label for="ret-pension-emma">Emma Annual Pension (£)</label>
+              <input type="text" id="ret-pension-emma" value="25,000.00">
+            </div>
+
+            <div class="input-group">
+              <label for="ret-isa-joel">Joel Annual ISA (£)</label>
+              <input type="text" id="ret-isa-joel" value="20,000.00">
+            </div>
+
+            <div class="input-group">
+              <label for="ret-isa-emma">Emma Annual ISA (£)</label>
+              <input type="text" id="ret-isa-emma" value="20,000.00">
+            </div>
+
+            <div class="input-group">
+              <label for="ret-tax-free-allowance">Annual Tax-Free Allowance (£/person)</label>
+              <input type="text" id="ret-tax-free-allowance" value="12,570.00">
+            </div>
+
+            <!-- STATE PENSION BACKLOG VARIABLES -->
+            <div class="input-group">
+              <label for="ret-state-pension-amt">Annual State Pension (£/person)</label>
+              <input type="text" id="ret-state-pension-amt" value="12,547.00">
+            </div>
+
+            <div class="input-group">
+              <label for="ret-state-pension-age">State Pension Age</label>
+              <input type="number" id="ret-state-pension-age" value="68" min="60" max="75">
+            </div>
           </div>
 
-          <div class="input-group">
-            <label for="ret-age-joel">Joel Retirement Age <span id="ret-year-joel" style="color: #38bdf8; font-weight: bold;">(2044)</span></label>
-            <input type="number" id="ret-age-joel" value="53" min="40" max="80">
-          </div>
-
-          <div class="input-group">
-            <label for="ret-age-emma">Emma Retirement Age (Synchronized) <span id="ret-year-emma" style="color: #38bdf8; font-weight: bold;">(2044)</span></label>
-            <input type="number" id="ret-age-emma" value="50.6" disabled style="opacity: 0.7; cursor: not-allowed;">
-          </div>
-
-          <div class="input-group">
-            <label for="ret-pension-joel">Joel Annual Pension (£)</label>
-            <input type="text" id="ret-pension-joel" value="40,000.00">
-          </div>
-
-          <div class="input-group">
-            <label for="ret-pension-emma">Emma Annual Pension (£)</label>
-            <input type="text" id="ret-pension-emma" value="25,000.00">
-          </div>
-
-          <div class="input-group">
-            <label for="ret-isa-joel">Joel Annual ISA (£)</label>
-            <input type="text" id="ret-isa-joel" value="20,000.00">
-          </div>
-
-          <div class="input-group">
-            <label for="ret-isa-emma">Emma Annual ISA (£)</label>
-            <input type="text" id="ret-isa-emma" value="20,000.00">
-          </div>
-        </div>
-
-        <!-- Pre-Retirement Withdrawals -->
-        <div style="margin-top: 1.5rem; border-top: 1px solid #334155; padding-top: 1rem;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-            <h4 style="margin: 0;">Pre-Retirement One-Off Withdrawals (e.g., House Purchase / Move)</h4>
-            <button type="button" id="btn-add-drawdown" class="btn-filter-action">+ Add Withdrawal</button>
-          </div>
-          <div id="drawdowns-list-container">
-            <div class="drawdown-row" style="display: flex; gap: 10px; align-items: center; margin-top: 8px;">
-              <span>Amount: £</span>
-              <input type="text" class="drawdown-amount" value="100,000.00" style="width: 140px;">
-              <span>Year:</span>
-              <input type="number" class="drawdown-year" value="2029" style="width: 100px;">
-              <span>(April)</span>
-              <button type="button" class="btn-remove-drawdown" style="background: none; border: none; color: #f87171; cursor: pointer; font-weight: bold;">✕</button>
+          <!-- Pre-Retirement Withdrawals Manager -->
+          <div style="margin-top: 1.5rem; border-top: 1px solid #334155; padding-top: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <h4 style="margin: 0;">Pre-Retirement One-Off Withdrawals (e.g., House Purchase / Move)</h4>
+              <button type="button" id="btn-add-drawdown" class="btn-filter-action">+ Add Withdrawal</button>
+            </div>
+            <div id="drawdowns-list-container">
+              <div class="drawdown-row" style="display: flex; gap: 10px; align-items: center; margin-top: 8px;">
+                <span>Amount: £</span>
+                <input type="text" class="drawdown-amount" value="100,000.00" style="width: 140px;">
+                <span>Year:</span>
+                <input type="number" class="drawdown-year" value="2029" style="width: 100px;">
+                <span>(April)</span>
+                <button type="button" class="btn-remove-drawdown" style="background: none; border: none; color: #f87171; cursor: pointer; font-weight: bold;">✕</button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+
+        <!-- Mortgage & Housing Assumptions -->
+        <div style="margin-top: 1.5rem; border-top: 1px solid #334155; padding-top: 1.5rem;">
+          <h3>Mortgage & Housing Assumptions</h3>
+          
+          <div class="inputs-grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-top: 1rem;">
+            <div class="input-group">
+              <label for="mort-home-value">Home Value (£)</label>
+              <input type="text" id="mort-home-value" value="1,200,000.00">
+            </div>
+
+            <div class="input-group">
+              <label for="mort-ltv-pct">Loan Amount (% LTV)</label>
+              <input type="number" id="mort-ltv-pct" value="80" min="0" max="100">
+            </div>
+
+            <div class="input-group">
+              <label for="mort-deposit-val">Deposit Required (inc. Stamp Duty) <span style="color: #94a3b8; font-size: 0.75rem;">(Auto)</span></label>
+              <input type="text" id="mort-deposit-val" value="303,750.00" disabled style="opacity: 0.7; cursor: not-allowed; font-weight: bold; color: #34d399 !important;">
+            </div>
+
+            <div class="input-group">
+              <label for="mort-interest-rate">Interest Rate (%)</label>
+              <input type="number" id="mort-interest-rate" value="4.1" step="0.1" min="0">
+            </div>
+
+            <div class="input-group">
+              <label for="mort-term-years">Mortgage Term (Years)</label>
+              <input type="number" id="mort-term-years" value="25" min="1" max="40">
+            </div>
+
+            <div class="input-group">
+              <label for="mort-purchase-year">Year of Purchase (April)</label>
+              <input type="number" id="mort-purchase-year" value="2030" min="2024" max="2060">
+            </div>
+
+            <div class="input-group">
+              <label for="mort-monthly-payment">Monthly Payment (£) <span style="color: #94a3b8; font-size: 0.75rem;">(Auto)</span></label>
+              <input type="text" id="mort-monthly-payment" value="5,117.84" disabled style="opacity: 0.7; cursor: not-allowed;">
+            </div>
+
+            <div class="input-group">
+              <label for="mort-balance-at-retirement">Outstanding Balance at Retirement (£) <span style="color: #94a3b8; font-size: 0.75rem;">(Auto)</span></label>
+              <input type="text" id="mort-balance-at-retirement" value="520,381.18" disabled style="opacity: 0.7; cursor: not-allowed; color: #f87171 !important; font-weight: bold;">
+            </div>
+          </div>
+        </div>
+
+        <!-- Drawdown Inputs Section -->
+        <div style="margin-top: 1.5rem; border-top: 1px solid #334155; padding-top: 1.5rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <h3>Drawdown Assumptions</h3>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="subtitle" style="font-weight: 600; color: #cbd5e1;">Target Monthly Living Expenses (Today's Money):</span>
+              <span style="font-weight: bold; color: #34d399;">£</span>
+              <input type="text" id="ret-monthly-expense" value="5,000.00" style="width: 130px; font-weight: bold; color: #34d399;">
+            </div>
+          </div>
+
+          <!-- Post-Retirement Lump Sum Expenditure Manager -->
+          <div style="margin-top: 1rem; background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <h4 style="margin: 0; font-size: 0.95rem;">Post-Retirement One-Off Lump Sum Expenditures</h4>
+              <button type="button" id="btn-add-post-lump" class="btn-filter-action">+ Add Post-Retirement Lump Sum</button>
+            </div>
+            <div id="post-lump-list-container">
+              <div class="post-lump-row" style="display: flex; gap: 10px; align-items: center; margin-top: 8px;">
+                <span>Amount: £</span>
+                <input type="text" class="post-lump-amount" value="50,000.00" style="width: 140px;">
+                <span>Year:</span>
+                <input type="number" class="post-lump-year" value="2046" style="width: 100px;">
+                <button type="button" class="btn-remove-post-lump" style="background: none; border: none; color: #f87171; cursor: pointer; font-weight: bold;">✕</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- END #all-variables-container -->
+
+      <!-- TOP-LEVEL KPI SUMMARY CARDS -->
+      <section class="metrics-grid" style="margin-bottom: 2rem;">
+        <div class="card" style="border-top: 4px solid #38bdf8;">
+          <h3 style="font-size: 0.9rem; color: #94a3b8; text-transform: uppercase;">Total Projected Retirement Pot</h3>
+          <p id="top-kpi-retirement-pot" style="font-size: 1.8rem; font-weight: bold; color: #38bdf8; margin-top: 8px;">£0.00</p>
+          <div class="subtitle" style="font-size: 0.8rem; color: #cbd5e1; margin-top: 4px;">At Joint Retirement Date</div>
+        </div>
+
+        <div class="card" style="border-top: 4px solid #a855f7;">
+          <h3 style="font-size: 0.9rem; color: #94a3b8; text-transform: uppercase;">Total Projected Legacy Pot</h3>
+          <p id="top-kpi-legacy-pot" style="font-size: 1.8rem; font-weight: bold; color: #a855f7; margin-top: 8px;">£0.00</p>
+          <div class="subtitle" style="font-size: 0.8rem; color: #cbd5e1; margin-top: 4px;">At Emma Age 90</div>
+        </div>
+
+        <div class="card" style="border-top: 4px solid #34d399;">
+          <h3 style="font-size: 0.9rem; color: #94a3b8; text-transform: uppercase;">Other Cash Balances</h3>
+          <p id="top-kpi-other-cash" style="font-size: 1.8rem; font-weight: bold; color: #34d399; margin-top: 8px;">£0.00</p>
+          <div class="subtitle" style="font-size: 0.8rem; color: #cbd5e1; margin-top: 4px;">Cash ISAs, Premium Bonds & Bank Cash</div>
+        </div>
+      </section>
 
       <!-- Section 2: Accumulation Growth Chart -->
       <div id="retirement-chart-container" class="card" style="padding: 1.5rem; margin-top: 1.5rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-          <div>
-            <h3 style="margin: 0;">2. Projected Net Asset Growth to Retirement</h3>
-            <p class="subtitle" style="margin-top: 4px;">Consolidated forecast for Pensions, ISAs, and GIAs up to Joint Retirement Date</p>
-          </div>
-          <div style="text-align: right;">
-            <span class="subtitle">Projected Total Pot at Retirement:</span>
-            <div id="projected-total-pot" style="font-size: 1.5rem; font-weight: bold; color: #38bdf8;">£0.00</div>
-          </div>
+        <div style="margin-bottom: 1rem;">
+          <h3 style="margin: 0;">2. Projected Retirement Pot</h3>
         </div>
 
         <!-- Series Filters for Accumulation Chart -->
@@ -305,74 +419,10 @@
         </div>
       </div>
 
-      <!-- Mortgage & Housing Assumptions Sub-Section -->
-      <div id="mortgage-variables-container" class="card" style="margin-top: 2rem; padding: 1.5rem;">
-        <h3>Mortgage & Housing Assumptions</h3>
-        <p class="subtitle">Models planned property purchase in April 2030 and outstanding balance payoff on retirement day.</p>
-        
-        <div class="inputs-grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-top: 1rem;">
-          <div class="input-group">
-            <label for="mort-home-value">Home Value (£)</label>
-            <input type="text" id="mort-home-value" value="1,200,000.00">
-          </div>
-
-          <div class="input-group">
-            <label for="mort-ltv-pct">Loan Amount (% LTV)</label>
-            <input type="number" id="mort-ltv-pct" value="80" min="0" max="100">
-          </div>
-
-          <div class="input-group">
-            <label for="mort-deposit-val">Deposit Required (inc. Stamp Duty) <span style="color: #94a3b8; font-size: 0.75rem;">(Auto)</span></label>
-            <input type="text" id="mort-deposit-val" value="303,750.00" disabled style="opacity: 0.7; cursor: not-allowed; font-weight: bold; color: #34d399 !important;">
-          </div>
-
-          <div class="input-group">
-            <label for="mort-interest-rate">Interest Rate (%)</label>
-            <input type="number" id="mort-interest-rate" value="4.1" step="0.1" min="0">
-          </div>
-
-          <div class="input-group">
-            <label for="mort-term-years">Mortgage Term (Years)</label>
-            <input type="number" id="mort-term-years" value="25" min="1" max="40">
-          </div>
-
-          <div class="input-group">
-            <label for="mort-purchase-year">Year of Purchase (April)</label>
-            <input type="number" id="mort-purchase-year" value="2030" min="2024" max="2060">
-          </div>
-
-          <div class="input-group">
-            <label for="mort-monthly-payment">Monthly Payment (£) <span style="color: #94a3b8; font-size: 0.75rem;">(Auto)</span></label>
-            <input type="text" id="mort-monthly-payment" value="5,117.84" disabled style="opacity: 0.7; cursor: not-allowed;">
-          </div>
-
-          <div class="input-group">
-            <label for="mort-balance-at-retirement">Outstanding Balance at Retirement (£) <span style="color: #94a3b8; font-size: 0.75rem;">(Auto)</span></label>
-            <input type="text" id="mort-balance-at-retirement" value="520,381.18" disabled style="opacity: 0.7; cursor: not-allowed; color: #f87171 !important; font-weight: bold;">
-          </div>
-        </div>
-      </div>
-
-      <!-- Section 3: Decumulation & Estate Legacy Engine -->
+      <!-- Section 3: Decumulation Engine -->
       <div id="decumulation-container" class="card" style="padding: 1.5rem; margin-top: 2rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; border-bottom: 1px solid #334155; padding-bottom: 1rem;">
-          <div>
-            <h3 style="margin: 0; color: #38bdf8;">3. Drawdown Strategy (Retirement to Emma Age 90)</h3>
-            <p class="subtitle" style="margin-top: 4px;">Dynamic decumulation modeling monthly living expenses, Day 1 ISA mortgage payoff, and inheritance runway.</p>
-          </div>
-          <div style="display: flex; gap: 1rem; align-items: center;">
-            <div style="text-align: right;">
-              <span class="subtitle">Target Monthly Expenses (Today's Money):</span>
-              <div style="display: flex; align-items: center; gap: 4px; margin-top: 2px;">
-                <span style="font-weight: bold; color: #34d399;">£</span>
-                <input type="text" id="ret-monthly-expense" value="5,000.00" style="width: 120px; font-weight: bold; color: #34d399;">
-              </div>
-            </div>
-            <div style="text-align: right; border-left: 1px solid #334155; padding-left: 1rem;">
-              <span class="subtitle">Projected Legacy at Age 90:</span>
-              <div id="projected-legacy-pot" style="font-size: 1.5rem; font-weight: bold; color: #a855f7;">£0.00</div>
-            </div>
-          </div>
+        <div style="margin-bottom: 1.5rem; border-bottom: 1px solid #334155; padding-bottom: 1rem;">
+          <h3 style="margin: 0; color: #38bdf8;">3. Drawdown Strategy (Retirement to Emma Age 90)</h3>
         </div>
 
         <!-- Key Milestones Summary Badges -->
@@ -384,30 +434,13 @@
           </div>
           <div class="milestone-card green">
             <div class="milestone-title">ISA Bridge Strategy</div>
-            <div class="milestone-val green">Age 53 → 58</div>
+            <div class="milestone-val green">Age 53 → 57</div>
             <div class="milestone-sub">Draws ISAs/Cash while pensions locked</div>
           </div>
           <div class="milestone-card purple">
-            <div class="milestone-title">Pension Access & Tax</div>
-            <div class="milestone-val purple">20% Tax Applied</div>
-            <div class="milestone-sub">Pensions prioritized post-58</div>
-          </div>
-        </div>
-
-        <!-- Post-Retirement Lump Sum Expenditure Manager -->
-        <div style="margin-bottom: 1.5rem; background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 1rem;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-            <h4 style="margin: 0; font-size: 0.95rem;">Post-Retirement One-Off Lump Sum Expenditures</h4>
-            <button type="button" id="btn-add-post-lump" class="btn-filter-action">+ Add Post-Retirement Lump Sum</button>
-          </div>
-          <div id="post-lump-list-container">
-            <div class="post-lump-row" style="display: flex; gap: 10px; align-items: center; margin-top: 8px;">
-              <span>Amount: £</span>
-              <input type="text" class="post-lump-amount" value="50,000.00" style="width: 140px;">
-              <span>Year:</span>
-              <input type="number" class="post-lump-year" value="2046" style="width: 100px;">
-              <button type="button" class="btn-remove-post-lump" style="background: none; border: none; color: #f87171; cursor: pointer; font-weight: bold;">✕</button>
-            </div>
+            <div class="milestone-title">Tax-Efficient Pension Waterfall</div>
+            <div class="milestone-val purple">Personal Allowance First</div>
+            <div class="milestone-sub">State Pension $\rightarrow$ Pension Personal Allowance $\rightarrow$ ISAs $\rightarrow$ Taxed Pensions</div>
           </div>
         </div>
 
@@ -437,7 +470,7 @@
           </div>
         </div>
 
-        <!-- Primary Decumulation Line Chart (2-Year Increments) -->
+        <!-- Primary Decumulation Line Chart -->
         <div class="chart-wrapper" style="position: relative; height: 750px; width: 100%;">
           <canvas id="decumulationChart"></canvas>
         </div>
@@ -475,10 +508,10 @@
             <h4 style="color: #a855f7; margin-bottom: 0.75rem; font-size: 1rem;">Post-Retirement Phase</h4>
             <ul style="color: #cbd5e1; font-size: 0.85rem; line-height: 1.6; padding-left: 1.2rem;">
               <li><strong>Day 1 Mortgage Payoff:</strong> Clears full outstanding mortgage balance using ISAs.</li>
-              <li><strong>50/50 De-risked Growth:</strong> Portfolio grows at 75% of pre-retirement rate (blending growth and safe assets).</li>
-              <li><strong>ISA Bridge (Pre-58):</strong> Living expenses draw tax-free from ISAs until pensions unlock.</li>
-              <li><strong>Pension Drawdown (58+):</strong> Living expenses switch to pensions with a 20% basic tax rate applied.</li>
-              <li><strong>Timeline Horizon:</strong> Projects cash flows until Emma reaches age 90.</li>
+              <li><strong>ISA Bridge (Pre-57):</strong> Living expenses draw 100% tax-free from ISAs until private pension access age 57.</li>
+              <li><strong>Tax-Free Personal Allowance (57+):</strong> Private pension draws utilize remaining Personal Allowance headroom tax-free.</li>
+              <li><strong>State Pension Offset:</strong> Tapping State Pension directly reduces required portfolio withdrawals.</li>
+              <li><strong>ISA Shielding:</strong> Monthly expenses exceeding Personal Allowance draw tax-free from ISAs/Cash next.</li>
             </ul>
           </div>
         </div>

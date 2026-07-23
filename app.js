@@ -2,7 +2,7 @@ const SUPABASE_URL = 'https://myckufuzjvgicpiphegj.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_lLMnno1aBCnV96JDZkT6ug_sZgolKaF';
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Register the datalabels plugin safely
+// Register the datalabels & annotation plugins safely
 if (window.ChartDataLabels) {
   Chart.register(ChartDataLabels);
 }
@@ -168,13 +168,18 @@ async function showDashboard() {
 
   setupNavigationListeners();
 
+  // Await data loads
   await fetchAssetClasses();
   await fetchLatestValues();
   await fetchSnapshots();
- 
+  
+  // Render input fields FIRST so they exist in DOM
   renderInputForms();
 
+  // Calculate KPIs AFTER input values exist
   calculateAndDisplayNetWorth();
+  calculateAndDisplayOtherCashKPI();
+  
   renderHistoryChart();
   calculateGrowthPercentages();
   updateLastUpdatedBadge();
@@ -212,12 +217,29 @@ async function fetchAssetClasses() {
   else assetClasses = data || [];
 }
 
+// FIXED: Fetches latest values from asset_history table
 async function fetchLatestValues() {
-  const { data, error } = await supabaseClient.from('asset_values').select('*');
-  if (error) console.error('Error fetching values:', error);
-  else {
-    (data || []).forEach(item => {
-      currentValues[item.asset_class_id] = item.current_value;
+  const { data, error } = await supabaseClient
+    .from('asset_history')
+    .select('asset_class_id, value, snapshot_date')
+    .order('snapshot_date', { ascending: false }); // Get newest snapshot entries first
+
+  if (error) {
+    console.error('Error fetching latest asset history:', error);
+    return;
+  }
+
+  currentValues = {};
+  if (data && data.length > 0) {
+    // Determine the latest snapshot_date available
+    const latestDate = data[0].snapshot_date;
+    
+    // Store values belonging to the latest snapshot date
+    data.filter(item => item.snapshot_date === latestDate).forEach(item => {
+      const key = item.asset_class_id || item.id;
+      if (key !== undefined) {
+        currentValues[key] = parseFloat(item.value) || 0;
+      }
     });
   }
 }
@@ -246,17 +268,21 @@ function updateLastUpdatedBadge() {
   }
 }
 
+// 2. Fixed renderInputForms to ensure input values receive raw currentValues
 function renderInputForms() {
   const joelContainer = document.getElementById('joel-inputs');
   const emmaContainer = document.getElementById('emma-inputs');
   const jointContainer = document.getElementById('joint-inputs');
+
+  if (!joelContainer || !emmaContainer || !jointContainer) return;
 
   joelContainer.innerHTML = '';
   emmaContainer.innerHTML = '';
   jointContainer.innerHTML = '';
 
   assetClasses.forEach(ac => {
-    const rawVal = currentValues[ac.id] || 0;
+    // Check both ac.id and fallback string comparisons
+    const rawVal = currentValues[ac.id] !== undefined ? currentValues[ac.id] : 0;
     const formattedVal = formatInputValue(rawVal);
 
     const div = document.createElement('div');
@@ -276,66 +302,72 @@ function renderInputForms() {
 
     const inputEl = div.querySelector('input');
 
-    inputEl.addEventListener('input', calculateAndDisplayNetWorth);
+    inputEl.addEventListener('input', () => {
+      calculateAndDisplayNetWorth();
+      calculateAndDisplayOtherCashKPI();
+    });
     inputEl.addEventListener('blur', (e) => {
       const val = parseCurrencyNumber(e.target.value);
       e.target.value = formatInputValue(val);
       calculateAndDisplayNetWorth();
+      calculateAndDisplayOtherCashKPI();
     });
   });
 }
-
+// DEDICATED NET WORTH CALCULATOR (Strict Live Calculation matching Breakdown Table)
 function calculateAndDisplayNetWorth() {
   let liquid = 0;
   let nonLiquid = 0;
+
+  if (!assetClasses || assetClasses.length === 0) return { total: 0, liquid: 0, nonLiquid: 0 };
 
   assetClasses.forEach(ac => {
     const input = document.getElementById(`asset-${ac.id}`);
     
     let val = 0;
-    if (input && input.value !== '') {
+    if (input && input.value !== '' && input.value !== undefined) {
       val = parseCurrencyNumber(input.value);
     } else if (currentValues[ac.id] !== undefined) {
       val = parseFloat(currentValues[ac.id]) || 0;
     }
 
-    if (ac.name === 'Mortgage Balance') {
-      nonLiquid -= val;
+    const name = (ac.name || '').trim();
+
+    // 1. Mortgages & Liabilities (Deductions)
+    if (name === 'Mortgage Balance') {
+      nonLiquid -= Math.abs(val);
     } else if (ac.is_liability) {
-      liquid -= val;
-    } else if (ac.is_liquid) {
+      liquid -= Math.abs(val);
+    } 
+    // 2. Liquid Assets
+    else if (ac.is_liquid) {
       liquid += val;
-    } else {
+    } 
+    // 3. Non-Liquid Assets (e.g., Home Value)
+    else {
       nonLiquid += val;
     }
   });
 
   const total = liquid + nonLiquid;
 
-  let finalTotal = total;
-  let finalLiquid = liquid;
-  let finalNonLiquid = nonLiquid;
-
-  if (total === 0 && snapshots.length > 0) {
-    const latestSnapshot = snapshots[snapshots.length - 1];
-    finalTotal = latestSnapshot.total_net_worth || 0;
-    finalLiquid = latestSnapshot.liquid_net_worth || 0;
-    finalNonLiquid = latestSnapshot.non_liquid_net_worth || 0;
-  }
-
   // Calculate percentages relative to Total Net Worth
   let liquidPct = 0;
   let nonLiquidPct = 0;
 
-  if (finalTotal > 0) {
-    liquidPct = Math.round((finalLiquid / finalTotal) * 100);
-    nonLiquidPct = Math.round((finalNonLiquid / finalTotal) * 100);
+  if (total > 0) {
+    liquidPct = Math.round((liquid / total) * 100);
+    nonLiquidPct = Math.round((nonLiquid / total) * 100);
   }
 
-  // Display Currency Values
-  document.getElementById('total-net-worth').innerText = formatCurrency(finalTotal);
-  document.getElementById('liquid-net-worth').innerText = formatCurrency(finalLiquid);
-  document.getElementById('non-liquid-net-worth').innerText = formatCurrency(finalNonLiquid);
+  // Display Currency Values on KPI Cards
+  const totalEl = document.getElementById('total-net-worth');
+  const liquidEl = document.getElementById('liquid-net-worth');
+  const nonLiquidEl = document.getElementById('non-liquid-net-worth');
+
+  if (totalEl) totalEl.innerText = formatCurrency(total);
+  if (liquidEl) liquidEl.innerText = formatCurrency(liquid);
+  if (nonLiquidEl) nonLiquidEl.innerText = formatCurrency(nonLiquid);
 
   // Display Percentage Badges in Headings
   const liquidPctEl = document.getElementById('liquid-pct');
@@ -344,7 +376,47 @@ function calculateAndDisplayNetWorth() {
   if (liquidPctEl) liquidPctEl.innerText = `(${liquidPct}%)`;
   if (nonLiquidPctEl) nonLiquidPctEl.innerText = `(${nonLiquidPct}%)`;
 
-  return { total: finalTotal, liquid: finalLiquid, nonLiquid: finalNonLiquid };
+  return { total, liquid, nonLiquid };
+}
+
+// BACKLOG ITEM 3: Other Cash Balances KPI Calculator (Including Company Shares & Subtracting Loans/Credit Cards)
+// BACKLOG ITEM 3: Other Cash Balances KPI Calculator
+function calculateAndDisplayOtherCashKPI() {
+  let otherCashSum = 0;
+
+  if (!assetClasses || assetClasses.length === 0) return;
+
+  assetClasses.forEach(ac => {
+    const input = document.getElementById(`asset-${ac.id}`);
+    let val = 0;
+
+    if (input && input.value !== '' && input.value !== undefined) {
+      val = parseCurrencyNumber(input.value);
+    } else if (currentValues[ac.id] !== undefined) {
+      val = parseFloat(currentValues[ac.id]) || 0;
+    }
+
+    const name = (ac.name || '').trim();
+
+    // RULE 1: Included Liquid Items (+ Positive)
+    const isCashISA = (name === 'Cash ISA');
+    const isPremiumBonds = (name === 'Premium Bonds');
+    const isCompanyShares = (name === 'Company Shares');
+
+    // RULE 2: Deducted Liabilities (- Negative)
+    const isLoansOrCredit = (name === 'Loans & Credit Cards');
+
+    if (isCashISA || isPremiumBonds || isCompanyShares) {
+      otherCashSum += val;
+    } else if (isLoansOrCredit) {
+      otherCashSum -= Math.abs(val);
+    }
+  });
+
+  const kpiOtherCashEl = document.getElementById('top-kpi-other-cash');
+  if (kpiOtherCashEl) {
+    kpiOtherCashEl.innerText = formatCurrency(otherCashSum);
+  }
 }
 
 async function saveMonthlySnapshot() {
@@ -374,6 +446,7 @@ async function saveMonthlySnapshot() {
     }
 
     const netWorth = calculateAndDisplayNetWorth();
+    calculateAndDisplayOtherCashKPI();
 
     await supabaseClient.from('monthly_snapshots').insert({
       snapshot_date: entryDate,
@@ -804,6 +877,7 @@ function setupNavigationListeners() {
   };
 }
 
+// 1. DEDICATED RETIREMENT BASELINE EXTRACTOR (Strict Asset Mapping)
 function extractRetirementBaselineData() {
   if (snapshots && snapshots.length > 0) {
     baselineRetirementData.snapshotDate = snapshots[snapshots.length - 1].snapshot_date;
@@ -811,6 +885,7 @@ function extractRetirementBaselineData() {
     baselineRetirementData.snapshotDate = new Date().toISOString().split('T')[0];
   }
 
+  // Reset baseline dictionary
   baselineRetirementData.joelISA = 0;
   baselineRetirementData.emmaISA = 0;
   baselineRetirementData.joelPension = 0;
@@ -830,18 +905,21 @@ function extractRetirementBaselineData() {
         val = parseFloat(currentValues[ac.id]) || 0;
       }
 
-      const nameLower = (ac.name || '').toLowerCase();
+      const name = (ac.name || '').trim();
       const owner = ac.owner;
 
-      if (nameLower.includes('isa')) {
+      // RULE 1: STOCKS & SHARES ISA ONLY (Excludes Cash ISA completely)
+      if (name === 'Stocks & Shares ISA') {
         if (owner === 'Joel') baselineRetirementData.joelISA += val;
         if (owner === 'Emma') baselineRetirementData.emmaISA += val;
       } 
-      else if (nameLower.includes('pension') || nameLower.includes('sipp')) {
+      // RULE 2: PENSIONS ONLY
+      else if (name === 'Pensions') {
         if (owner === 'Joel') baselineRetirementData.joelPension += val;
         if (owner === 'Emma') baselineRetirementData.emmaPension += val;
       } 
-      else if (nameLower.includes('gia') || nameLower.includes('brokerage') || nameLower.includes('investment')) {
+      // RULE 3: GIA ONLY
+      else if (name === 'GIA') {
         if (owner === 'Joel') baselineRetirementData.joelGIA += val;
         if (owner === 'Emma') baselineRetirementData.emmaGIA += val;
         if (owner === 'Joint') baselineRetirementData.jointGIA += val;
@@ -870,7 +948,6 @@ function calculateEmmaAgeAtRetirement(joelRetireYear) {
   return (ageYears + (monthDiff / 12)).toFixed(1);
 }
 
-// Mortgage Amortization & Balance Calculator
 // Progressive SDLT (Stamp Duty) Band Calculator
 function calculateSDLT(propertyValue) {
   let tax = 0;
@@ -892,7 +969,7 @@ function calculateSDLT(propertyValue) {
   return tax;
 }
 
-// Updated Mortgage & Deposit Metrics Calculator
+// Mortgage & Deposit Metrics Calculator
 function calculateMortgageMetrics(ageJoelVal) {
   const homeValue = parseCurrencyNumber(document.getElementById('mort-home-value')?.value || '1200000');
   const ltvPct = (parseFloat(document.getElementById('mort-ltv-pct')?.value) || 80) / 100;
@@ -905,11 +982,9 @@ function calculateMortgageMetrics(ageJoelVal) {
   const stampDuty = calculateSDLT(homeValue);
   const totalDepositIncSDLT = baseDeposit + stampDuty;
 
-  // Update Deposit Read-Only Field (inc. Stamp Duty)
   const depEl = document.getElementById('mort-deposit-val');
   if (depEl) depEl.value = formatInputValue(totalDepositIncSDLT);
 
-  // Monthly Mortgage Amortization Formula
   const monthlyRate = annualInterestRate / 12;
   const totalPayments = termYears * 12;
 
@@ -923,7 +998,6 @@ function calculateMortgageMetrics(ageJoelVal) {
   const payEl = document.getElementById('mort-monthly-payment');
   if (payEl) payEl.value = formatInputValue(monthlyPayment);
 
-  // Outstanding Balance at Joint Retirement Date
   const joelRetireYear = 1991 + ageJoelVal;
   const totalMonthsElapsed = Math.max(0, ((joelRetireYear - purchaseYear) * 12) + (10 - 4));
   const monthsRemaining = Math.max(0, totalPayments - totalMonthsElapsed);
@@ -953,7 +1027,6 @@ function setupRetirementInputListeners() {
   const yearJoelSpan = document.getElementById('ret-year-joel');
   const yearEmmaSpan = document.getElementById('ret-year-emma');
 
-  // Disable Emma input box so Joel drives the synchronized joint retirement age
   if (ageEmmaInput) {
     ageEmmaInput.disabled = true;
     ageEmmaInput.style.opacity = '0.7';
@@ -980,8 +1053,7 @@ function setupRetirementInputListeners() {
     ageJoelInput.addEventListener('input', syncAgesAndCalculate);
   }
 
-  // Bind live recalculation to all variable inputs
-  const container = document.getElementById('retirement-variables-container');
+  const container = document.getElementById('all-variables-container');
   if (container) {
     container.querySelectorAll('input').forEach(input => {
       if (input !== ageEmmaInput) {
@@ -990,23 +1062,10 @@ function setupRetirementInputListeners() {
     });
   }
 
-  // Bind live recalculation to Mortgage Inputs
-  const mortContainer = document.getElementById('mortgage-variables-container');
-  if (mortContainer) {
-    mortContainer.querySelectorAll('input').forEach(input => {
-      input.addEventListener('input', calculateRetirementForecast);
-    });
-  }
-
-  // Pre-Retirement Withdrawals Manager
   const addDrawdownBtn = document.getElementById('btn-add-drawdown');
   const drawdownsContainer = document.getElementById('drawdowns-list-container');
 
   if (addDrawdownBtn && drawdownsContainer) {
-    drawdownsContainer.querySelectorAll('input').forEach(inp => {
-      inp.addEventListener('input', calculateRetirementForecast);
-    });
-
     addDrawdownBtn.onclick = () => {
       const div = document.createElement('div');
       div.className = 'drawdown-row';
@@ -1039,20 +1098,10 @@ function setupRetirementInputListeners() {
     });
   }
 
-  // Post-Retirement Lump Sum Expenditure Manager (Section 3)
   const addPostLumpBtn = document.getElementById('btn-add-post-lump');
   const postLumpContainer = document.getElementById('post-lump-list-container');
-  const monthlyExpenseInput = document.getElementById('ret-monthly-expense');
-
-  if (monthlyExpenseInput) {
-    monthlyExpenseInput.addEventListener('input', calculateRetirementForecast);
-  }
 
   if (addPostLumpBtn && postLumpContainer) {
-    postLumpContainer.querySelectorAll('input').forEach(inp => {
-      inp.addEventListener('input', calculateRetirementForecast);
-    });
-
     addPostLumpBtn.onclick = () => {
       const div = document.createElement('div');
       div.className = 'post-lump-row';
@@ -1084,10 +1133,10 @@ function setupRetirementInputListeners() {
     });
   }
 
-  // Initial Sync on load
   syncAgesAndCalculate();
 }
 
+// Primary Retirement Projection & Decumulation Simulation
 // Primary Retirement Projection & Decumulation Simulation
 function calculateRetirementForecast() {
   if (!baselineRetirementData.snapshotDate) {
@@ -1102,10 +1151,14 @@ function calculateRetirementForecast() {
   const annualIsaJoel = parseCurrencyNumber(document.getElementById('ret-isa-joel')?.value || '20000');
   const annualIsaEmma = parseCurrencyNumber(document.getElementById('ret-isa-emma')?.value || '20000');
 
-  // Calculate Mortgage Metrics
+  const annualPersonalAllowancePerPerson = parseCurrencyNumber(document.getElementById('ret-tax-free-allowance')?.value || '12570');
+  
+  // Parse State Pension Variables
+  const annualStatePensionPerPerson = parseCurrencyNumber(document.getElementById('ret-state-pension-amt')?.value || '12547');
+  const statePensionAgeInput = parseInt(document.getElementById('ret-state-pension-age')?.value, 10) || 68;
+
   const mortMetrics = calculateMortgageMetrics(ageJoel);
 
-  // Parse Pre-Retirement Withdrawals
   const preWithdrawals = [];
   document.querySelectorAll('#drawdowns-list-container .drawdown-row').forEach(row => {
     const amt = parseCurrencyNumber(row.querySelector('.drawdown-amount')?.value);
@@ -1115,12 +1168,15 @@ function calculateRetirementForecast() {
     }
   });
 
-  // Target Joint Retirement Date driven by Joel
-  const jointRetireYear = 1991 + ageJoel; // October
+  const jointRetireYear = 1991 + ageJoel; // October target retirement year
 
-  const baseDate = new Date(baselineRetirementData.snapshotDate);
+  // Base starting simulation date directly on snapshot date (no month-ahead advance)
+  const baseDate = new Date(baselineRetirementData.snapshotDate || new Date());
   let currentYear = baseDate.getFullYear();
-  let currentMonth = baseDate.getMonth() + 1;
+  let currentMonth = baseDate.getMonth() + 1; // 1-indexed month matching snapshot (e.g. 6 for June)
+
+  let simYear = currentYear;
+  let simMonth = currentMonth;
 
   let joelIsa = baselineRetirementData.joelISA;
   let emmaIsa = baselineRetirementData.emmaISA;
@@ -1136,30 +1192,36 @@ function calculateRetirementForecast() {
   const accumGias = [];
   const accumTotals = [];
 
-  let simYear = currentYear;
-  let simMonth = currentMonth;
+  // Scoped Baseline Snapshot Entry (Prevents variable re-declaration conflicts)
+  {
+    const initMonthStr = simMonth < 10 ? `0${simMonth}` : `${simMonth}`;
+    accumLabels.push(`${initMonthStr}-${String(simYear).slice(-2)}`);
+    
+    const initPensions = joelPension + emmaPension;
+    const initIsas = joelIsa + emmaIsa;
+    
+    accumPensions.push(Math.round(initPensions));
+    accumIsas.push(Math.round(initIsas));
+    accumGias.push(Math.round(totalGia));
+    accumTotals.push(Math.round(initPensions + initIsas + totalGia));
+  }
 
-  // --------------------------------------------------------------------------
-  // PHASE 1: ACCUMULATION TO JOINT RETIREMENT DATE (OCTOBER OF RETIREMENT YEAR)
-  // --------------------------------------------------------------------------
+  // PHASE 1: ACCUMULATION TO JOINT RETIREMENT DATE
   while (simYear < jointRetireYear || (simYear === jointRetireYear && simMonth <= 10)) {
     const inTaper = simYear >= (jointRetireYear - 2);
     const effectiveGrowthRate = inTaper ? (monthlyGrowthRate * 0.3) : monthlyGrowthRate;
 
-    // Monthly Contributions (Active up to retirement month)
     joelPension += (annualPensionJoel / 12);
     joelIsa += (annualIsaJoel / 12);
     emmaPension += (annualPensionEmma / 12);
     emmaIsa += (annualIsaEmma / 12);
 
-    // Apply Growth
     joelPension *= (1 + effectiveGrowthRate);
     emmaPension *= (1 + effectiveGrowthRate);
     joelIsa *= (1 + effectiveGrowthRate);
     emmaIsa *= (1 + effectiveGrowthRate);
     totalGia *= (1 + effectiveGrowthRate);
 
-    // Pre-Retirement Withdrawals (April)
     if (simMonth === 4) {
       preWithdrawals.forEach(w => {
         if (w.year === simYear) {
@@ -1184,8 +1246,7 @@ function calculateRetirementForecast() {
       });
     }
 
-    // Record Data Points Yearly (Dec) or At Start/Retirement End
-    if (simMonth === 12 || (simYear === jointRetireYear && simMonth === 10) || (simYear === currentYear && simMonth === currentMonth)) {
+    if (simMonth === 12 || (simYear === jointRetireYear && simMonth === 10)) {
       const monthStr = simMonth < 10 ? `0${simMonth}` : `${simMonth}`;
       accumLabels.push(`${monthStr}-${String(simYear).slice(-2)}`);
       
@@ -1205,17 +1266,13 @@ function calculateRetirementForecast() {
     }
   }
 
-  // Update Total Pot Badge at Retirement
   const finalAccumTotal = accumTotals[accumTotals.length - 1] || 0;
-  const potBadge = document.getElementById('projected-total-pot');
-  if (potBadge) potBadge.innerText = formatCurrency(finalAccumTotal);
+  const potKpiBadge = document.getElementById('top-kpi-retirement-pot');
+  if (potKpiBadge) potKpiBadge.innerText = formatCurrency(finalAccumTotal);
 
   renderRetirementChart(accumLabels, accumPensions, accumIsas, accumGias, accumTotals);
 
-  // --------------------------------------------------------------------------
-  // PHASE 2: DECUMULATION & ESTATE LEGACY ENGINE (DAY 1 TO EMMA AGE 90)
-  // --------------------------------------------------------------------------
-  
+  // PHASE 2: DECUMULATION & ESTATE LEGACY ENGINE
   const monthlyExpenseNet = parseCurrencyNumber(document.getElementById('ret-monthly-expense')?.value || '5000');
   
   const postLumpSums = [];
@@ -1227,7 +1284,6 @@ function calculateRetirementForecast() {
     }
   });
 
-  // DAY 1 MORTGAGE PAYOFF: Direct ISA withdrawal for outstanding balance (No pension PCLS sweep)
   const day1MortgagePayoff = mortMetrics.outstandingBalanceAtRetirement;
   let halfMortPayoff = day1MortgagePayoff / 2;
 
@@ -1247,16 +1303,18 @@ function calculateRetirementForecast() {
     totalGia = Math.max(0, totalGia - remain);
   }
 
-  // Update Day 1 Mortgage Payoff Badge in UI
   const mortPayBadge = document.getElementById('badge-mort-payoff');
   if (mortPayBadge) mortPayBadge.innerText = formatCurrency(day1MortgagePayoff);
 
-  // Decumulation Timeline Bounds (Retirement Date -> March 2084 when Emma turns 90)
   const emmaAge90Year = 2084;
   const emmaAge90Month = 3;
 
-  const joelAge58Year = 1991 + 58; // 2049
-  const emmaAge58Year = 1994 + 58; // 2052
+  // Key Access Milestones
+  const joelPrivatePensionYear = 1991 + 57; // 2048
+  const emmaPrivatePensionYear = 1994 + 57; // 2051
+
+  const joelStatePensionYear = 1991 + statePensionAgeInput;
+  const emmaStatePensionYear = 1994 + statePensionAgeInput;
 
   const decLabels = [];
   const decPensions = [];
@@ -1264,90 +1322,139 @@ function calculateRetirementForecast() {
   const decGias = [];
   const decTotals = [];
 
-  // Annual Drawdowns tracking for Bar Chart
   const annualDrawdownYears = [];
   const annualDrawdownAmounts = [];
-  let currentYearDrawdownSum = day1MortgagePayoff; // Initialize Year 1 with Day 1 mortgage payoff
+  let currentYearDrawdownSum = day1MortgagePayoff;
 
-  // Record Day 1 Initial State Post-Mortgage Payoff
+  // Annual counters
+  let joelAllowanceRem = annualPersonalAllowancePerPerson;
+  let emmaAllowanceRem = annualPersonalAllowancePerPerson;
+
   decLabels.push(`10-${String(jointRetireYear).slice(-2)}`);
   decPensions.push(Math.round(joelPension + emmaPension));
   decIsas.push(Math.round(joelIsa + emmaIsa));
   decGias.push(Math.round(totalGia));
   decTotals.push(Math.round(joelPension + emmaPension + joelIsa + emmaIsa + totalGia));
 
-  // Advance simulation past retirement month
   simMonth++;
   if (simMonth > 12) {
     simMonth = 1;
     simYear++;
   }
 
-  // Blended post-retirement growth rate (50% full growth, 50% half growth = 75% effective)
   const blendedAnnualRate = realGrowthRate * 0.75;
   const monthlyDecumulationRate = Math.pow(1 + blendedAnnualRate, 1 / 12) - 1;
 
   while (simYear < emmaAge90Year || (simYear === emmaAge90Year && simMonth <= emmaAge90Month)) {
-    // Apply blended post-retirement growth rate across remaining portfolios
+    if (simMonth === 4) {
+      joelAllowanceRem = annualPersonalAllowancePerPerson;
+      emmaAllowanceRem = annualPersonalAllowancePerPerson;
+    }
+
     joelPension *= (1 + monthlyDecumulationRate);
     emmaPension *= (1 + monthlyDecumulationRate);
     joelIsa *= (1 + monthlyDecumulationRate);
     emmaIsa *= (1 + monthlyDecumulationRate);
     totalGia *= (1 + monthlyDecumulationRate);
 
-    // Minimum pension age availability flag (Age 58)
-    const joelPensionAccessible = (simYear > joelAge58Year) || (simYear === joelAge58Year && simMonth >= 10);
-    const emmaPensionAccessible = (simYear > emmaAge58Year) || (simYear === emmaAge58Year && simMonth >= 3);
-    const pensionsAccessible = joelPensionAccessible || emmaPensionAccessible;
+    const joelPrivateAccessible = (simYear > joelPrivatePensionYear) || (simYear === joelPrivatePensionYear && simMonth >= 10);
+    const emmaPrivateAccessible = (simYear > emmaPrivatePensionYear) || (simYear === emmaPrivatePensionYear && simMonth >= 3);
 
-    // Monthly Living Expense Drawdown Logic
-    if (pensionsAccessible && (joelPension + emmaPension > 0)) {
-      // 20% basic rate tax gross-up on pension drawdown
-      const grossMonthlyDraw = monthlyExpenseNet / 0.8;
-      let halfGross = grossMonthlyDraw / 2;
+    const joelStateActive = (simYear > joelStatePensionYear) || (simYear === joelStatePensionYear && simMonth >= 10);
+    const emmaStateActive = (simYear > emmaStatePensionYear) || (simYear === emmaStatePensionYear && simMonth >= 3);
 
-      currentYearDrawdownSum += grossMonthlyDraw;
+    // State Pension monthly income injections
+    let monthlyStateIncomeJoel = joelStateActive ? (annualStatePensionPerPerson / 12) : 0;
+    let monthlyStateIncomeEmma = emmaStateActive ? (annualStatePensionPerPerson / 12) : 0;
 
-      // Draw from Joel Pension
-      if (joelPension >= halfGross) {
-        joelPension -= halfGross;
-      } else {
-        let remainGross = halfGross - joelPension;
-        joelPension = 0;
-        emmaPension = Math.max(0, emmaPension - remainGross);
+    // Deduct State Pension from tax-free allowance counters
+    if (joelStateActive) {
+      joelAllowanceRem = Math.max(0, joelAllowanceRem - (annualStatePensionPerPerson / 12));
+    }
+    if (emmaStateActive) {
+      emmaAllowanceRem = Math.max(0, emmaAllowanceRem - (annualStatePensionPerPerson / 12));
+    }
+
+    let netNeededFromPortfolio = Math.max(0, monthlyExpenseNet - monthlyStateIncomeJoel - monthlyStateIncomeEmma);
+
+    if (netNeededFromPortfolio > 0) {
+      // Step 1: Draw from Private Pensions up to remaining Personal Allowance Headroom (0% Tax)
+      let joelTaxFreeDraw = 0;
+      if (joelPrivateAccessible && joelPension > 0 && joelAllowanceRem > 0) {
+        joelTaxFreeDraw = Math.min(netNeededFromPortfolio / 2, joelPension, joelAllowanceRem);
+        joelPension -= joelTaxFreeDraw;
+        joelAllowanceRem -= joelTaxFreeDraw;
       }
 
-      // Draw from Emma Pension
-      if (emmaPension >= halfGross) {
-        emmaPension -= halfGross;
-      } else {
-        let remainGross = halfGross - emmaPension;
-        emmaPension = 0;
-        joelPension = Math.max(0, joelPension - remainGross);
-      }
-    } else {
-      // Bridge Phase (Pre-58): Draw tax-free from ISAs then GIAs
-      let halfNet = monthlyExpenseNet / 2;
-      currentYearDrawdownSum += monthlyExpenseNet;
-
-      if (joelIsa >= halfNet) {
-        joelIsa -= halfNet;
-      } else {
-        let remain = halfNet - joelIsa;
-        joelIsa = 0;
-        totalGia = Math.max(0, totalGia - remain);
+      let emmaTaxFreeDraw = 0;
+      if (emmaPrivateAccessible && emmaPension > 0 && emmaAllowanceRem > 0) {
+        emmaTaxFreeDraw = Math.min(netNeededFromPortfolio / 2, emmaPension, emmaAllowanceRem);
+        emmaPension -= emmaTaxFreeDraw;
+        emmaAllowanceRem -= emmaTaxFreeDraw;
       }
 
-      if (emmaIsa >= halfNet) {
-        emmaIsa -= halfNet;
-      } else {
-        let remain = halfNet - emmaIsa;
-        emmaIsa = 0;
-        totalGia = Math.max(0, totalGia - remain);
+      netNeededFromPortfolio -= (joelTaxFreeDraw + emmaTaxFreeDraw);
+      currentYearDrawdownSum += (joelTaxFreeDraw + emmaTaxFreeDraw);
+
+      // Step 2: Draw remaining living expenses from ISAs / Cash (0% Tax Shield)
+      if (netNeededFromPortfolio > 0 && (joelIsa + emmaIsa > 0)) {
+        let halfIsaNeeded = netNeededFromPortfolio / 2;
+
+        if (joelIsa >= halfIsaNeeded) {
+          joelIsa -= halfIsaNeeded;
+          netNeededFromPortfolio -= halfIsaNeeded;
+          currentYearDrawdownSum += halfIsaNeeded;
+        } else {
+          netNeededFromPortfolio -= joelIsa;
+          currentYearDrawdownSum += joelIsa;
+          joelIsa = 0;
+        }
+
+        if (emmaIsa >= halfIsaNeeded) {
+          emmaIsa -= halfIsaNeeded;
+          netNeededFromPortfolio -= halfIsaNeeded;
+          currentYearDrawdownSum += halfIsaNeeded;
+        } else {
+          netNeededFromPortfolio -= emmaIsa;
+          currentYearDrawdownSum += emmaIsa;
+          emmaIsa = 0;
+        }
+      }
+
+      // Step 3: Draw remaining expenses from Private Pensions grossed up for 20% Tax
+      if (netNeededFromPortfolio > 0 && (joelPension + emmaPension > 0)) {
+        const grossNeeded = netNeededFromPortfolio / 0.8;
+        let halfGross = grossNeeded / 2;
+
+        if (joelPrivateAccessible && joelPension >= halfGross) {
+          joelPension -= halfGross;
+        } else if (joelPrivateAccessible) {
+          let remainGross = halfGross - joelPension;
+          joelPension = 0;
+          if (emmaPrivateAccessible) emmaPension = Math.max(0, emmaPension - remainGross);
+        }
+
+        if (emmaPrivateAccessible && emmaPension >= halfGross) {
+          emmaPension -= halfGross;
+        } else if (emmaPrivateAccessible) {
+          let remainGross = halfGross - emmaPension;
+          emmaPension = 0;
+          if (joelPrivateAccessible) joelPension = Math.max(0, joelPension - remainGross);
+        }
+
+        currentYearDrawdownSum += grossNeeded;
+        netNeededFromPortfolio = 0;
+      }
+
+      // Step 4: Final GIA fallback
+      if (netNeededFromPortfolio > 0 && totalGia > 0) {
+        const giaDraw = Math.min(netNeededFromPortfolio, totalGia);
+        totalGia -= giaDraw;
+        netNeededFromPortfolio -= giaDraw;
+        currentYearDrawdownSum += giaDraw;
       }
     }
 
-    // Post-Retirement Lump Sum Expenditures (April)
     if (simMonth === 4) {
       postLumpSums.forEach(ls => {
         if (ls.year === simYear) {
@@ -1373,11 +1480,9 @@ function calculateRetirementForecast() {
       });
     }
 
-    // Record Data Points Yearly (Dec) or At Timeline End
     if (simMonth === 12 || (simYear === emmaAge90Year && simMonth === emmaAge90Month)) {
       const yearDiff = simYear - jointRetireYear;
       
-      // Filter X-Axis ticks to 2-Year Increments starting from retirement year
       if (yearDiff % 2 === 0 || (simYear === emmaAge90Year && simMonth === emmaAge90Month)) {
         const monthStr = simMonth < 10 ? `0${simMonth}` : `${simMonth}`;
         decLabels.push(`${monthStr}-${String(simYear).slice(-2)}`);
@@ -1391,10 +1496,9 @@ function calculateRetirementForecast() {
         decTotals.push(Math.round(aggPensions + aggIsas + totalGia));
       }
 
-      // Record Annual Drawdown Totals for Bar Chart
       annualDrawdownYears.push(`${simYear}`);
       annualDrawdownAmounts.push(Math.round(currentYearDrawdownSum));
-      currentYearDrawdownSum = 0; // Reset for next simulation year
+      currentYearDrawdownSum = 0;
     }
 
     simMonth++;
@@ -1404,12 +1508,17 @@ function calculateRetirementForecast() {
     }
   }
 
-  // Update Estate Legacy Badge at Age 90
   const finalLegacyTotal = decTotals[decTotals.length - 1] || 0;
-  const legacyBadge = document.getElementById('projected-legacy-pot');
-  if (legacyBadge) legacyBadge.innerText = formatCurrency(finalLegacyTotal);
+  const legacyKpiBadge = document.getElementById('top-kpi-legacy-pot');
+  if (legacyKpiBadge) legacyKpiBadge.innerText = formatCurrency(finalLegacyTotal);
 
-  renderDecumulationChart(decLabels, decPensions, decIsas, decGias, decTotals);
+  renderDecumulationChart(decLabels, decPensions, decIsas, decGias, decTotals, {
+    joelPrivateYear: joelPrivatePensionYear,
+    emmaPrivateYear: emmaPrivatePensionYear,
+    joelStateYear: joelStatePensionYear,
+    emmaStateYear: emmaStatePensionYear,
+    statePensionAge: statePensionAgeInput
+  });
   renderAnnualDrawdownChart(annualDrawdownYears, annualDrawdownAmounts);
 }
 
@@ -1479,13 +1588,91 @@ function renderRetirementChart(labels, pensions, isas, gias, totals) {
   retirementChart.update();
 }
 
-// Render Decumulation & Estate Legacy Chart (Line Chart with 2-Year Increments)
-function renderDecumulationChart(labels, pensions, isas, gias, totals) {
+// Render Decumulation & Estate Legacy Chart (Clean White Vertical Milestone Lines, No Text Labels)
+function renderDecumulationChart(labels, pensions, isas, gias, totals, milestoneConfig) {
   const ctx = document.getElementById('decumulationChart')?.getContext('2d');
   if (!ctx) return;
 
   if (decumulationChart) {
     decumulationChart.destroy();
+  }
+
+  // Helper to calculate exact fractional index position on the X-axis for non-even years
+  const getXPositionForYear = (targetYear) => {
+    const targetShort = parseInt(String(targetYear).slice(-2), 10);
+    const labelYears = labels.map(l => parseInt(l.split('-')[1], 10));
+
+    // Exact match
+    const exactIdx = labelYears.indexOf(targetShort);
+    if (exactIdx !== -1) return exactIdx;
+
+    // Fractional interpolation if target year falls between two tick marks
+    for (let i = 0; i < labelYears.length - 1; i++) {
+      const currentYr = labelYears[i];
+      const nextYr = labelYears[i + 1];
+
+      if (targetShort > currentYr && targetShort < nextYr) {
+        const fraction = (targetShort - currentYr) / (nextYr - currentYr);
+        return i + fraction;
+      }
+    }
+
+    return null;
+  };
+
+  const xJoelPrivate = getXPositionForYear(milestoneConfig.joelPrivateYear); // 2048
+  const xEmmaPrivate = getXPositionForYear(milestoneConfig.emmaPrivateYear); // 2051 (interpolated)
+  const xJoelState   = getXPositionForYear(milestoneConfig.joelStateYear);   // 2059 (interpolated)
+  const xEmmaState   = getXPositionForYear(milestoneConfig.emmaStateYear);   // 2062
+
+  const annotations = {};
+
+  // 1. Joel Private Pension Age (2048)
+  if (xJoelPrivate !== null) {
+    annotations.lineJoelPrivate = {
+      type: 'line',
+      xMin: xJoelPrivate,
+      xMax: xJoelPrivate,
+      borderColor: '#ffffff',
+      borderWidth: 2,
+      borderDash: [6, 4]
+    };
+  }
+
+  // 2. Emma Private Pension Age (2051)
+  if (xEmmaPrivate !== null) {
+    annotations.lineEmmaPrivate = {
+      type: 'line',
+      xMin: xEmmaPrivate,
+      xMax: xEmmaPrivate,
+      borderColor: '#ffffff',
+      borderWidth: 2,
+      borderDash: [6, 4]
+    };
+  }
+
+  // 3. Joel State Pension Age (2059)
+  if (xJoelState !== null) {
+    annotations.lineJoelState = {
+      type: 'line',
+      xMin: xJoelState,
+      xMax: xJoelState,
+      borderColor: '#ffffff',
+      borderWidth: 2,
+      borderDash: [6, 4]
+    };
+  }
+
+  // 4. Emma State Pension Age (2062)
+  if (xEmmaState !== null) {
+    annotations.lineEmmaState = {
+      type: 'line',
+      xMin: xEmmaState,
+      xMax: xEmmaState,
+      borderColor: '#ffffff',
+      borderWidth: 2,
+      borderDash: [6, 4]
+    };
   }
 
   decumulationChart = new Chart(ctx, {
@@ -1503,10 +1690,13 @@ function renderDecumulationChart(labels, pensions, isas, gias, totals) {
       responsive: true,
       maintainAspectRatio: false,
       layout: { 
-        padding: { top: 50, right: 25, bottom: 20, left: 15 } 
+        padding: { top: 40, right: 25, bottom: 20, left: 15 }
       },
       plugins: {
         legend: { display: false },
+        annotation: {
+          annotations: annotations
+        },
         datalabels: {
           anchor: 'end',
           align: 'top',
@@ -1545,7 +1735,7 @@ function renderDecumulationChart(labels, pensions, isas, gias, totals) {
   decumulationChart.update();
 }
 
-// Render Annual Total Drawdowns Bar Chart (Below Section 3 Main Chart)
+// Render Annual Total Drawdowns Bar Chart
 function renderAnnualDrawdownChart(years, amounts) {
   const ctx = document.getElementById('annualDrawdownChart')?.getContext('2d');
   if (!ctx) return;
