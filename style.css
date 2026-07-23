@@ -339,7 +339,25 @@ input:disabled {
 /* Filter Controls Container */
 .breakdown-card {
   margin-top: 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
 }
+
+.table-wrapper {
+  overflow-x: auto;
+  width: 100%;
+}
+
+.breakdown-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: right;
+  font-size: 0.9rem;
+  table-layout: auto;
+}
+
 
 .filters-container {
   display: flex;

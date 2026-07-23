@@ -119,22 +119,19 @@
         <button id="save-values-btn">Save</button>
       </section>
 
-      
-   <!-- Historical Growth Chart -->
-<section class="chart-section">
-  <h2>Historical Net Worth Growth</h2>
-  <div class="chart-wrapper" style="position: relative; height: 380px; width: 100%;">
-    <canvas id="historyChart"></canvas>
-  </div>
-</section>
+      <!-- Historical Growth Chart -->
+      <section class="chart-section">
+        <h2>Historical Net Worth Growth</h2>
+        <div class="chart-wrapper" style="position: relative; height: 380px; width: 100%;">
+          <canvas id="historyChart"></canvas>
+        </div>
+      </section>
 
       <!-- Breakdown Table Section -->
       <section class="card breakdown-card">
-        <div class="card-header">
-                  <div class="card-header" style="margin-bottom: 1rem;">
-  <h2 style="font-size: 1.3rem; margin: 0;">Asset & Liability Breakdown History</h2>
-  <p class="subtitle" style="font-size: 0.85rem; color: #94a3b8; margin-top: 4px;">Filterable view showing recorded entries</p>
-</div>
+        <div class="card-header" style="margin-bottom: 1rem;">
+          <h2 style="font-size: 1.3rem; margin: 0;">Asset & Liability Breakdown History</h2>
+          <p class="subtitle" style="font-size: 0.85rem; color: #94a3b8; margin-top: 4px;">Filterable view showing recorded entries</p>
         </div>
 
         <!-- Filter Controls -->
@@ -145,25 +142,25 @@
           </div>
 
           <!-- Owner Filters -->
-<div class="filter-group">
-  <span class="filter-label">Owner:</span>
-  <div class="checkbox-group" id="owner-filters">
-    <label class="checkbox-pill pill-dark"><input type="checkbox" value="Joel" checked> Joel</label>
-    <label class="checkbox-pill pill-dark"><input type="checkbox" value="Emma" checked> Emma</label>
-    <label class="checkbox-pill pill-dark"><input type="checkbox" value="Joint" checked> Joint</label>
-  </div>
-</div>
-
-<!-- Asset Type Filters -->
-<div class="filter-group">
-  <span class="filter-label">Asset Type:</span>
-  <div class="checkbox-group" id="type-filters">
-    <label class="checkbox-pill pill-dark"><input type="checkbox" value="liquid" checked> Liquid</label>
-    <label class="checkbox-pill pill-dark"><input type="checkbox" value="non-liquid" checked> Non-Liquid</label>
-  </div>
-</div>
+          <div class="filter-group">
+            <span class="filter-label">Owner:</span>
+            <div class="checkbox-group" id="owner-filters">
+              <label class="checkbox-pill pill-dark"><input type="checkbox" value="Joel" checked> Joel</label>
+              <label class="checkbox-pill pill-dark"><input type="checkbox" value="Emma" checked> Emma</label>
+              <label class="checkbox-pill pill-dark"><input type="checkbox" value="Joint" checked> Joint</label>
+            </div>
           </div>
 
+          <!-- Asset Type Filters -->
+          <div class="filter-group">
+            <span class="filter-label">Asset Type:</span>
+            <div class="checkbox-group" id="type-filters">
+              <label class="checkbox-pill pill-dark"><input type="checkbox" value="liquid" checked> Liquid</label>
+              <label class="checkbox-pill pill-dark"><input type="checkbox" value="non-liquid" checked> Non-Liquid</label>
+            </div>
+          </div>
+
+          <!-- Category Filters -->
           <div class="filter-group">
             <span class="filter-label">Category:</span>
             <div class="checkbox-group" id="category-filters">
@@ -325,9 +322,9 @@
           </div>
 
           <div class="input-group">
-  <label for="mort-deposit-val">Deposit Required (inc. Stamp Duty) <span style="color: #94a3b8; font-size: 0.75rem;">(Auto)</span></label>
-  <input type="text" id="mort-deposit-val" value="303,750.00" disabled style="opacity: 0.7; cursor: not-allowed; font-weight: bold; color: #34d399 !important;">
-</div>
+            <label for="mort-deposit-val">Deposit Required (inc. Stamp Duty) <span style="color: #94a3b8; font-size: 0.75rem;">(Auto)</span></label>
+            <input type="text" id="mort-deposit-val" value="303,750.00" disabled style="opacity: 0.7; cursor: not-allowed; font-weight: bold; color: #34d399 !important;">
+          </div>
 
           <div class="input-group">
             <label for="mort-interest-rate">Interest Rate (%)</label>
@@ -456,36 +453,37 @@
 
       </div>
 
-<!-- Section 4: Model Assumptions & Calculation Logic -->
-<div id="model-assumptions-container" class="card" style="margin-top: 2rem; padding: 1.5rem; background: #0f172a; border: 1px solid #334155;">
-  <h3 style="margin-bottom: 0.5rem; color: #cbd5e1;">4. Model Assumptions & Calculation Logic</h3>
-  <p class="subtitle" style="margin-bottom: 1.5rem;">A summary of the rules and formulas powering your forward projections.</p>
+      <!-- Section 4: Model Assumptions & Calculation Logic -->
+      <div id="model-assumptions-container" class="card" style="margin-top: 2rem; padding: 1.5rem; background: #0f172a; border: 1px solid #334155;">
+        <h3 style="margin-bottom: 0.5rem; color: #cbd5e1;">4. Model Assumptions & Calculation Logic</h3>
+        <p class="subtitle" style="margin-bottom: 1.5rem;">A summary of the rules and formulas powering your forward projections.</p>
 
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
-    <!-- Pre-Retirement Box -->
-    <div style="background: #1e293b; padding: 1.25rem; border-radius: 8px; border-left: 4px solid #38bdf8;">
-      <h4 style="color: #38bdf8; margin-bottom: 0.75rem; font-size: 1rem;">Pre-Retirement Phase</h4>
-      <ul style="color: #cbd5e1; font-size: 0.85rem; line-height: 1.6; padding-left: 1.2rem;">
-        <li><strong>Baseline:</strong> Starts from your latest live account balances.</li>
-        <li><strong>Growth:</strong> Monthly compounding using your selected <em>Real Growth Rate</em>.</li>
-        <li><strong>Pre-Retirement Taper:</strong> Growth drops to 30% speed in the 2 years prior to retirement to model portfolio de-risking.</li>
-        <li><strong>One-Offs:</strong> Planned pre-retirement withdrawals are deducted from ISAs in April.</li>
-      </ul>
-    </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+          <!-- Pre-Retirement Box -->
+          <div style="background: #1e293b; padding: 1.25rem; border-radius: 8px; border-left: 4px solid #38bdf8;">
+            <h4 style="color: #38bdf8; margin-bottom: 0.75rem; font-size: 1rem;">Pre-Retirement Phase</h4>
+            <ul style="color: #cbd5e1; font-size: 0.85rem; line-height: 1.6; padding-left: 1.2rem;">
+              <li><strong>Baseline:</strong> Starts from your latest live account balances.</li>
+              <li><strong>Growth:</strong> Monthly compounding using your selected <em>Real Growth Rate</em>.</li>
+              <li><strong>Pre-Retirement Taper:</strong> Growth drops to 30% speed in the 2 years prior to retirement to model portfolio de-risking.</li>
+              <li><strong>One-Offs:</strong> Planned pre-retirement withdrawals are deducted from ISAs in April.</li>
+            </ul>
+          </div>
 
-    <!-- Post-Retirement Box -->
-    <div style="background: #1e293b; padding: 1.25rem; border-radius: 8px; border-left: 4px solid #a855f7;">
-      <h4 style="color: #a855f7; margin-bottom: 0.75rem; font-size: 1rem;">Post-Retirement Phase</h4>
-      <ul style="color: #cbd5e1; font-size: 0.85rem; line-height: 1.6; padding-left: 1.2rem;">
-        <li><strong>Day 1 Mortgage Payoff:</strong> Clears full outstanding mortgage balance using ISAs.</li>
-        <li><strong>50/50 De-risked Growth:</strong> Portfolio grows at 75% of pre-retirement rate (blending growth and safe assets).</li>
-        <li><strong>ISA Bridge (Pre-58):</strong> Living expenses draw tax-free from ISAs until pensions unlock.</li>
-        <li><strong>Pension Drawdown (58+):</strong> Living expenses switch to pensions with a 20% basic tax rate applied.</li>
-        <li><strong>Timeline Horizon:</strong> Projects cash flows until Emma reaches age 90.</li>
-      </ul>
-    </div>
-  </div>
-</div>
+          <!-- Post-Retirement Box -->
+          <div style="background: #1e293b; padding: 1.25rem; border-radius: 8px; border-left: 4px solid #a855f7;">
+            <h4 style="color: #a855f7; margin-bottom: 0.75rem; font-size: 1rem;">Post-Retirement Phase</h4>
+            <ul style="color: #cbd5e1; font-size: 0.85rem; line-height: 1.6; padding-left: 1.2rem;">
+              <li><strong>Day 1 Mortgage Payoff:</strong> Clears full outstanding mortgage balance using ISAs.</li>
+              <li><strong>50/50 De-risked Growth:</strong> Portfolio grows at 75% of pre-retirement rate (blending growth and safe assets).</li>
+              <li><strong>ISA Bridge (Pre-58):</strong> Living expenses draw tax-free from ISAs until pensions unlock.</li>
+              <li><strong>Pension Drawdown (58+):</strong> Living expenses switch to pensions with a 20% basic tax rate applied.</li>
+              <li><strong>Timeline Horizon:</strong> Projects cash flows until Emma reaches age 90.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
     </div><!-- END #view-retirement -->
 
   </div><!-- END #app-container -->
