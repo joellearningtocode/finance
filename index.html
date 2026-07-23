@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Our Finances — Net Assets</title>
+  <title>Our Finances — Net Assets & Retirement Planning</title>
   <link rel="stylesheet" href="style.css">
+  
   <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   
@@ -15,6 +16,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 </head>
 <body>
+
   <!-- Login Screen -->
   <div id="auth-container" class="auth-card">
     <h2>Our Finances Login</h2>
@@ -33,107 +35,116 @@
     </form>
   </div>
 
-  <!-- Protected Dashboard Container -->
+  <!-- Protected Application Container -->
   <div id="app-container" class="container" style="display: none;">
-    <header>
+    
+    <!-- Navigation Header -->
+    <header class="app-header">
       <div class="header-content">
         <div>
           <h1>Our Finances</h1>
-          <p>Page 1: Net Assets & Historical Growth</p>
+          <p>Financial Command Center</p>
         </div>
         <div class="header-right">
+          <nav class="main-nav">
+            <button type="button" class="nav-btn active" id="nav-net-assets">Net Assets</button>
+            <button type="button" class="nav-btn" id="nav-retirement">Retirement Planning</button>
+          </nav>
           <span id="last-updated-badge" class="last-updated">Last Updated: Never</span>
           <button id="logout-btn" class="secondary-btn">Log Out</button>
         </div>
       </div>
     </header>
 
-    <!-- Net Worth Summary Cards -->
-    <section class="metrics-grid">
-      <div class="card card-total">
-        <h3>Total Net Worth</h3>
-        <p id="total-net-worth">£0.00</p>
-        <div class="growth-stats">
-          <span id="total-last-growth">vs Last: --</span> | 
-          <span id="total-ytd-growth">YTD: --</span>
-        </div>
-      </div>
-
-      <div class="card card-liquid">
-        <h3>Liquid Net Worth</h3>
-        <p id="liquid-net-worth">£0.00</p>
-        <div class="growth-stats">
-          <span id="liquid-last-growth">vs Last: --</span> | 
-          <span id="liquid-ytd-growth">YTD: --</span>
-        </div>
-      </div>
-
-      <div class="card card-nonliquid">
-        <h3>Non-Liquid Net Worth</h3>
-        <p id="non-liquid-net-worth">£0.00</p>
-        <div class="growth-stats">
-          <span id="nonliquid-last-growth">vs Last: --</span> | 
-          <span id="nonliquid-ytd-growth">YTD: --</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- Data Entry Section -->
-    <section class="data-section">
-      <div class="section-header">
-        <h2>Enter Monthly Asset Figures</h2>
-        <div class="date-picker-group">
-          <label for="snapshot-date">Entry Date:</label>
-          <input type="date" id="snapshot-date">
-        </div>
-      </div>
-
-      <!-- Sections for Joel, Emma, Joint -->
-      <div class="owners-container">
-        <div class="owner-box">
-          <h3>Joel's Assets & Liabilities</h3>
-          <div id="joel-inputs" class="inputs-grid"></div>
+    <!-- VIEW 1: NET ASSETS (Dashboard View) -->
+    <div id="view-net-assets" class="view-panel active">
+      
+      <!-- Net Worth Summary Cards -->
+      <section class="metrics-grid">
+        <div class="card card-total">
+          <h3>Total Net Worth</h3>
+          <p id="total-net-worth">£0.00</p>
+          <div class="growth-stats">
+            <span id="total-last-growth">vs Last: --</span> | 
+            <span id="total-ytd-growth">YTD: --</span>
+          </div>
         </div>
 
-        <div class="owner-box">
-          <h3>Emma's Assets & Liabilities</h3>
-          <div id="emma-inputs" class="inputs-grid"></div>
+        <div class="card card-liquid">
+          <h3>Liquid Net Worth</h3>
+          <p id="liquid-net-worth">£0.00</p>
+          <div class="growth-stats">
+            <span id="liquid-last-growth">vs Last: --</span> | 
+            <span id="liquid-ytd-growth">YTD: --</span>
+          </div>
         </div>
 
-        <div class="owner-box">
-          <h3>Joint Property & Mortgage</h3>
-          <div id="joint-inputs" class="inputs-grid"></div>
+        <div class="card card-nonliquid">
+          <h3>Non-Liquid Net Worth</h3>
+          <p id="non-liquid-net-worth">£0.00</p>
+          <div class="growth-stats">
+            <span id="nonliquid-last-growth">vs Last: --</span> | 
+            <span id="nonliquid-ytd-growth">YTD: --</span>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <button id="save-values-btn">Save</button>
-    </section>
+      <!-- Data Entry Section -->
+      <section class="data-section">
+        <div class="section-header">
+          <h2>Enter Monthly Asset Figures</h2>
+          <div class="date-picker-group">
+            <label for="snapshot-date">Entry Date:</label>
+            <input type="date" id="snapshot-date">
+          </div>
+        </div>
 
-    <!-- Historical Growth Chart -->
-    <section class="chart-section">
-      <h2>Historical Net Worth Growth</h2>
-      <div class="chart-wrapper">
-        <canvas id="historyChart"></canvas>
-      </div>
-    </section>
-    <section class="card breakdown-card">
+        <!-- Sections for Joel, Emma, Joint -->
+        <div class="owners-container">
+          <div class="owner-box">
+            <h3>Joel's Assets & Liabilities</h3>
+            <div id="joel-inputs" class="inputs-grid"></div>
+          </div>
+
+          <div class="owner-box">
+            <h3>Emma's Assets & Liabilities</h3>
+            <div id="emma-inputs" class="inputs-grid"></div>
+          </div>
+
+          <div class="owner-box">
+            <h3>Joint Property & Mortgage</h3>
+            <div id="joint-inputs" class="inputs-grid"></div>
+          </div>
+        </div>
+
+        <button id="save-values-btn">Save</button>
+      </section>
+
+      <!-- Historical Growth Chart -->
+      <section class="chart-section">
+        <h2>Historical Net Worth Growth</h2>
+        <div class="chart-wrapper">
+          <canvas id="historyChart"></canvas>
+        </div>
+      </section>
+
+      <!-- Breakdown Table Section -->
+      <section class="card breakdown-card">
         <div class="card-header">
           <h2>Asset & Liability Breakdown History</h2>
-          <p class="subtitle">Filterable view showing the last 4 recorded entries</p>
+          <p class="subtitle">Filterable view showing recorded entries</p>
         </div>
 
         <!-- Filter Controls -->
         <div class="filters-container">
-            <div class="filter-actions">
-    <button type="button" class="btn-filter-action" id="btn-select-all">Select All</button>
-    <button type="button" class="btn-filter-action" id="btn-deselect-all">Deselect All</button>
-  </div>
+          <div class="filter-actions">
+            <button type="button" class="btn-filter-action" id="btn-select-all">Select All</button>
+            <button type="button" class="btn-filter-action" id="btn-deselect-all">Deselect All</button>
+          </div>
 
-  <div class="filter-group">
-    <span class="filter-label">Owner:</span>
-    <!-- ... rest of owner checkboxes ... -->
           <div class="filter-group">
-                    <div class="checkbox-group" id="owner-filters">
+            <span class="filter-label">Owner:</span>
+            <div class="checkbox-group" id="owner-filters">
               <label class="checkbox-pill"><input type="checkbox" value="Joel" checked> Joel</label>
               <label class="checkbox-pill"><input type="checkbox" value="Emma" checked> Emma</label>
               <label class="checkbox-pill"><input type="checkbox" value="Joint" checked> Joint</label>
@@ -159,31 +170,117 @@
         <!-- Dynamic Breakdown Table -->
         <div class="table-wrapper">
           <table class="breakdown-table" id="breakdown-table">
-             <thead>
-               <tr id="table-header-row">
-                   <th>Owner</th>
-                 <th>Asset / Liability</th>
-                  <th>Type</th>
-                  <!-- Snapshot Date Headers -->
-                  <th>Avg Growth</th>
-                  <th>Total Growth</th> <!-- NEW COLUMN HEADER -->
-             </tr>
-         </thead>
-         <tbody id="table-body">
-          <!-- Dynamic Rows -->
-         </tbody>
-         <tfoot>
+            <thead>
+              <tr id="table-header-row">
+                <th>Owner</th>
+                <th>Asset / Liability</th>
+                <th>Type</th>
+                <!-- Snapshot Date Headers -->
+                <th>Avg Growth</th>
+                <th>Total Growth</th>
+              </tr>
+            </thead>
+            <tbody id="table-body">
+              <!-- Dynamic Rows -->
+            </tbody>
+            <tfoot>
               <tr id="table-footer-row" class="totals-row">
-               <td colspan="3"><strong>Total</strong></td>
-               <!-- Date Totals -->
-               <td id="avg-growth-total"><strong>-</strong></td>
-               <td id="total-growth-total"><strong>-</strong></td> <!-- NEW FOOTER CELL -->
-            </tr>
-         </tfoot>
-        </table>
+                <td colspan="3"><strong>Total</strong></td>
+                <!-- Date Totals -->
+                <td id="avg-growth-total"><strong>-</strong></td>
+                <td id="total-growth-total"><strong>-</strong></td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
       </section>
-  </div>
+
+    </div>
+<!-- VIEW 2: RETIREMENT PLANNING (Missing Wrapper Added Here) -->
+    <div id="view-retirement" class="view-panel" style="display: none;">
+      
+      <!-- Section 1: Forecast Variables -->
+      <div id="retirement-variables-container" class="card" style="margin-bottom: 2rem; padding: 1.5rem;">
+        <h3>1. Forecast Variables & Assumptions</h3>
+        <p class="subtitle">Adjust inputs below to stress-test your projections in real-time.</p>
+        
+        <div class="inputs-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 1rem;">
+          <div class="input-group">
+            <label for="ret-growth-rate">Real Growth Rate (% net of inflation)</label>
+            <input type="number" id="ret-growth-rate" value="5" step="0.1" min="0">
+          </div>
+
+          <div class="input-group">
+            <label for="ret-age-joel">Joel Retirement Age <span id="ret-year-joel" style="color: #38bdf8; font-weight: bold;">(2044)</span></label>
+            <input type="number" id="ret-age-joel" value="53" min="40" max="80">
+          </div>
+
+          <div class="input-group">
+            <label for="ret-age-emma">Emma Retirement Age <span id="ret-year-emma" style="color: #38bdf8; font-weight: bold;">(2045)</span></label>
+            <input type="number" id="ret-age-emma" value="51" min="40" max="80">
+          </div>
+
+          <div class="input-group">
+            <label for="ret-pension-joel">Joel Annual Pension (£)</label>
+            <input type="text" id="ret-pension-joel" value="40,000.00">
+          </div>
+
+          <div class="input-group">
+            <label for="ret-pension-emma">Emma Annual Pension (£)</label>
+            <input type="text" id="ret-pension-emma" value="25,000.00">
+          </div>
+
+          <div class="input-group">
+            <label for="ret-isa-joel">Joel Annual ISA (£)</label>
+            <input type="text" id="ret-isa-joel" value="20,000.00">
+          </div>
+
+          <div class="input-group">
+            <label for="ret-isa-emma">Emma Annual ISA (£)</label>
+            <input type="text" id="ret-isa-emma" value="20,000.00">
+          </div>
+        </div>
+
+        <!-- Drawdowns -->
+        <div style="margin-top: 1.5rem; border-top: 1px solid #334155; padding-top: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <h4 style="margin: 0;">Lump Sum Drawdowns (e.g., House Purchase)</h4>
+            <button type="button" id="btn-add-drawdown" class="btn-filter-action">+ Add Drawdown</button>
+          </div>
+          <div id="drawdowns-list-container">
+            <div class="drawdown-row" style="display: flex; gap: 10px; align-items: center; margin-top: 8px;">
+              <span>Amount: £</span>
+              <input type="text" class="drawdown-amount" value="100,000.00" style="width: 140px;">
+              <span>Year:</span>
+              <input type="number" class="drawdown-year" value="2029" style="width: 100px;">
+              <span>(April)</span>
+              <button type="button" class="btn-remove-drawdown" style="background: none; border: none; color: #f87171; cursor: pointer; font-weight: bold;">✕</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: Enlarged Forecast Chart -->
+      <div id="retirement-chart-container" class="card" style="padding: 1.5rem; margin-top: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <div>
+            <h3 style="margin: 0;">2. Projected Net Asset Growth to Retirement</h3>
+            <p class="subtitle" style="margin-top: 4px;">Consolidated forecast for Pensions, ISAs, and GIAs up to March 2045</p>
+          </div>
+          <div style="text-align: right;">
+            <span class="subtitle">Projected Total Pot at Retirement:</span>
+            <div id="projected-total-pot" style="font-size: 1.5rem; font-weight: bold; color: #38bdf8;">£0.00</div>
+          </div>
+        </div>
+
+        <div class="chart-wrapper" style="position: relative; height: 800px; width: 100%;">
+          <canvas id="retirementChart"></canvas>
+        </div>
+      </div>
+
+    </div><!-- END #view-retirement -->
+
+  </div><!-- END #app-container -->
 
   <script src="app.js"></script>
 </body>
