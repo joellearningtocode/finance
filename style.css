@@ -317,19 +317,18 @@ input[type="date"]:focus, input[type="text"]:focus, input[type="email"]:focus, i
   flex-wrap: wrap;
 }
 
+/* Color Pill Checkbox Filters */
 .checkbox-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #1e293b;
-  border: 1px solid #475569;
-  padding: 6px 12px;
+  padding: 6px 14px;
   border-radius: 20px;
+  font-weight: 600;
   font-size: 0.85rem;
-  color: #cbd5e1;
   cursor: pointer;
-  transition: all 0.2s ease;
   user-select: none;
+  transition: opacity 0.2s ease, transform 0.1s ease;
 }
 
 .checkbox-pill:has(input:checked) {
@@ -338,10 +337,22 @@ input[type="date"]:focus, input[type="text"]:focus, input[type="email"]:focus, i
   color: #ffffff;
 }
 
-.checkbox-pill input {
-  accent-color: #38bdf8;
+.checkbox-pill input[type="checkbox"] {
+  accent-color: #0f172a; /* Dark checkmark inside colored pill */
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
 }
 
+/* Individual Pill Background Colors matching Chart datasets */
+.pill-pension { background-color: #38bdf8; color: #0f172a; }
+.pill-isa { background-color: #34d399; color: #0f172a; }
+.pill-gia { background-color: #fbbf24; color: #0f172a; }
+.pill-total { background-color: #a855f7; color: #ffffff; }
+
+.checkbox-pill:hover {
+  transform: translateY(-1px);
+}
 /* Table Styling */
 .table-wrapper {
   overflow-x: auto;
@@ -467,3 +478,80 @@ input[type="date"]:focus, input[type="text"]:focus, input[type="email"]:focus, i
 .view-panel {
   width: 100%;
 }
+/* Checkbox Color Pill Filters */
+.checkbox-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.2s ease, transform 0.1s ease;
+}
+
+.checkbox-pill input[type="checkbox"] {
+  accent-color: #0f172a; /* Dark checkmark inside color background */
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+}
+
+/* Individual Dataset Pill Colors */
+.pill-pension { background-color: #38bdf8; color: #0f172a; }
+.pill-isa     { background-color: #34d399; color: #0f172a; }
+.pill-gia     { background-color: #fbbf24; color: #0f172a; }
+.pill-total   { background-color: #a855f7; color: #ffffff; }
+
+.checkbox-pill:hover {
+  transform: translateY(-1px);
+}
+
+/* Custom Checkbox Pill Container & Base Styling */
+.checkbox-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.15s ease, opacity 0.2s ease;
+}
+
+.checkbox-pill input[type="checkbox"] {
+  accent-color: #0f172a; /* Dark checkmark inside the pill */
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+}
+
+/* Series Background Colors Matching Chart Lines */
+.pill-pension { 
+  background-color: #38bdf8 !important; 
+  color: #0f172a !important; 
+}
+
+.pill-isa { 
+  background-color: #34d399 !important; 
+  color: #0f172a !important; 
+}
+
+.pill-gia { 
+  background-color: #fbbf24 !important; 
+  color: #0f172a !important; 
+}
+
+.pill-total { 
+  background-color: #a855f7 !important; 
+  color: #ffffff !important; 
+}
+
+.checkbox-pill:hover {
+  transform: translateY(-1px);
+}
+

@@ -56,38 +56,38 @@
       </div>
     </header>
 
-    <!-- VIEW 1: NET ASSETS (Dashboard View) -->
-    <div id="view-net-assets" class="view-panel active">
-      
-      <!-- Net Worth Summary Cards -->
-      <section class="metrics-grid">
-        <div class="card card-total">
-          <h3>Total Net Worth</h3>
-          <p id="total-net-worth">£0.00</p>
-          <div class="growth-stats">
-            <span id="total-last-growth">vs Last: --</span> | 
-            <span id="total-ytd-growth">YTD: --</span>
-          </div>
-        </div>
+   <!-- VIEW 1: NET ASSETS (Dashboard View) -->
+<div id="view-net-assets" class="view-panel active">
+  
+  <!-- Net Worth Summary Cards -->
+  <section class="metrics-grid">
+    <div class="card card-total">
+      <h3>Total Net Worth</h3>
+      <p id="total-net-worth">£0.00</p>
+      <div class="growth-stats">
+        <span id="total-last-growth">vs Last: --</span> | 
+        <span id="total-ytd-growth">YTD: --</span>
+      </div>
+    </div>
 
-        <div class="card card-liquid">
-          <h3>Liquid Net Worth</h3>
-          <p id="liquid-net-worth">£0.00</p>
-          <div class="growth-stats">
-            <span id="liquid-last-growth">vs Last: --</span> | 
-            <span id="liquid-ytd-growth">YTD: --</span>
-          </div>
-        </div>
+    <div class="card card-liquid">
+      <h3>Liquid Net Worth <span id="liquid-pct" style="font-weight: bold; color: #34d399;">(0%)</span></h3>
+      <p id="liquid-net-worth">£0.00</p>
+      <div class="growth-stats">
+        <span id="liquid-last-growth">vs Last: --</span> | 
+        <span id="liquid-ytd-growth">YTD: --</span>
+      </div>
+    </div>
 
-        <div class="card card-nonliquid">
-          <h3>Non-Liquid Net Worth</h3>
-          <p id="non-liquid-net-worth">£0.00</p>
-          <div class="growth-stats">
-            <span id="nonliquid-last-growth">vs Last: --</span> | 
-            <span id="nonliquid-ytd-growth">YTD: --</span>
-          </div>
-        </div>
-      </section>
+    <div class="card card-nonliquid">
+      <h3>Non-Liquid Net Worth <span id="nonliquid-pct" style="font-weight: bold; color: #fbbf24;">(0%)</span></h3>
+      <p id="non-liquid-net-worth">£0.00</p>
+      <div class="growth-stats">
+        <span id="nonliquid-last-growth">vs Last: --</span> | 
+        <span id="nonliquid-ytd-growth">YTD: --</span>
+      </div>
+    </div>
+  </section>
 
       <!-- Data Entry Section -->
       <section class="data-section">
@@ -135,7 +135,7 @@
           <p class="subtitle">Filterable view showing recorded entries</p>
         </div>
 
-        <!-- Filter Controls -->
+         <!-- Filter Controls -->
         <div class="filters-container">
           <div class="filter-actions">
             <button type="button" class="btn-filter-action" id="btn-select-all">Select All</button>
@@ -272,7 +272,31 @@
             <div id="projected-total-pot" style="font-size: 1.5rem; font-weight: bold; color: #38bdf8;">£0.00</div>
           </div>
         </div>
+<!-- Custom Checkbox Color Pills for Retirement Chart -->
+<div class="filters-container" style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+  <div class="filter-actions">
+    <button type="button" class="btn-filter-action" id="ret-btn-select-all">Select All</button>
+    <button type="button" class="btn-filter-action" id="ret-btn-deselect-all">Deselect All</button>
+  </div>
 
+  <div class="filter-group" style="display: flex; align-items: center; gap: 0.5rem;">
+    <span class="filter-label" style="font-weight: 600; color: #94a3b8;">Show Series:</span>
+   <div class="checkbox-group" id="ret-series-filters" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+  <label class="checkbox-pill pill-pension">
+    <input type="checkbox" class="ret-series-toggle" data-dataset="0" checked> Pensions
+  </label>
+  <label class="checkbox-pill pill-isa">
+    <input type="checkbox" class="ret-series-toggle" data-dataset="1" checked> ISAs
+  </label>
+  <label class="checkbox-pill pill-gia">
+    <input type="checkbox" class="ret-series-toggle" data-dataset="2" checked> GIAs
+  </label>
+  <label class="checkbox-pill pill-total">
+    <input type="checkbox" class="ret-series-toggle" data-dataset="3" checked> Total Portfolio
+  </label>
+</div>
+  </div>
+</div>
         <div class="chart-wrapper" style="position: relative; height: 800px; width: 100%;">
           <canvas id="retirementChart"></canvas>
         </div>

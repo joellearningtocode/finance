@@ -74,6 +74,7 @@ async function initApp() {
 }
 
 // Setup Series Toggle Listeners for Retirement Chart
+// Function to handle custom pill clicks
 function setupRetirementSeriesFilterListeners() {
   const selectAllBtn = document.getElementById('ret-btn-select-all');
   const deselectAllBtn = document.getElementById('ret-btn-deselect-all');
@@ -280,13 +281,29 @@ function calculateAndDisplayNetWorth() {
     finalNonLiquid = latestSnapshot.non_liquid_net_worth || 0;
   }
 
+  // Calculate percentages relative to Total Net Worth
+  let liquidPct = 0;
+  let nonLiquidPct = 0;
+
+  if (finalTotal > 0) {
+    liquidPct = Math.round((finalLiquid / finalTotal) * 100);
+    nonLiquidPct = Math.round((finalNonLiquid / finalTotal) * 100);
+  }
+
+  // Display Currency Values
   document.getElementById('total-net-worth').innerText = formatCurrency(finalTotal);
   document.getElementById('liquid-net-worth').innerText = formatCurrency(finalLiquid);
   document.getElementById('non-liquid-net-worth').innerText = formatCurrency(finalNonLiquid);
 
+  // Display Percentage Badges in Headings
+  const liquidPctEl = document.getElementById('liquid-pct');
+  const nonLiquidPctEl = document.getElementById('nonliquid-pct');
+
+  if (liquidPctEl) liquidPctEl.innerText = `(${liquidPct}%)`;
+  if (nonLiquidPctEl) nonLiquidPctEl.innerText = `(${nonLiquidPct}%)`;
+
   return { total: finalTotal, liquid: finalLiquid, nonLiquid: finalNonLiquid };
 }
-
 async function saveMonthlySnapshot() {
   const btn = document.getElementById('save-values-btn');
   const entryDate = document.getElementById('snapshot-date').value;
@@ -1008,20 +1025,23 @@ function renderRetirementChart(labels, pensions, isas, gias, totals) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      layout: { padding: { top: 35, right: 25, bottom: 10, left: 15 } },
+      layout: { 
+        padding: { top: 50, right: 25, bottom: 20, left: 15 } 
+      },
       plugins: {
+        // Hide redundant default legend completely
+        legend: {
+          display: false 
+        },
         datalabels: {
           anchor: 'end',
           align: 'top',
           color: '#f8fafc',
-          font: { weight: 'bold', size: 11 },
+          font: { weight: 'bold', size: 12 },
           formatter: (val) => formatCompactCurrency(val)
         },
         tooltip: {
           callbacks: { label: (ctx) => `${ctx.dataset.label}: ${formatCurrency(ctx.raw)}` }
-        },
-        legend: {
-          labels: { color: '#cbd5e1', font: { size: 13, weight: '600' }, padding: 15 }
         }
       },
       scales: {
@@ -1034,6 +1054,7 @@ function renderRetirementChart(labels, pensions, isas, gias, totals) {
           beginAtZero: true,
           ticks: {
             color: '#94a3b8',
+            font: { size: 12 },
             callback: (val) => formatCompactCurrency(val)
           },
           grid: { color: '#1e293b' }
@@ -1042,6 +1063,7 @@ function renderRetirementChart(labels, pensions, isas, gias, totals) {
     }
   });
 
+  // Apply current checkbox pill selections to newly rendered chart
   document.querySelectorAll('.ret-series-toggle').forEach(cb => {
     const idx = parseInt(cb.getAttribute('data-dataset'), 10);
     retirementChart.setDatasetVisibility(idx, cb.checked);
